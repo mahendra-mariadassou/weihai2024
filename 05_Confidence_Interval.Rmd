@@ -1,0 +1,814 @@
+---
+title: "Confidence Intervals"
+author: "Mahendra Mariadassou, INRAE <br> .small[from original slides by Tristan Mary-Huard]"
+date: "Shandong University, Weihai (CN)<br>Summer School 2024"
+output:
+  xaringan::moon_reader:
+    chakra: libs/remark-latest.min.js
+    css: ["css/custom_weihai_ss.css", default]
+    lib_dir: libs
+    nature:
+      ratio: '16:9'
+      slideNumberFormat: '%current%'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+    includes:
+      before_body: macros.html
+height: 1080
+width: 1920
+---
+    
+```{r setup, include=FALSE,}
+knitr::opts_chunk$set(echo = FALSE,comment=NA,message=FALSE,warning = FALSE)
+library(ggplot2)
+library('gridExtra')
+library(dplyr)
+DisplayVect <- function(v,NbItemPerLine=6,Max=30,Round=3){
+  lv <- length(v)
+  Max <- min(lv, Max)
+  v <- v[1:Max]
+  for (ii in 1:(lv%/%NbItemPerLine)){
+    cat(round(v[((ii-1)*NbItemPerLine+1):(ii*NbItemPerLine)],Round),'\n')
+  }
+  if (lv%%NbItemPerLine !=0){
+    cat(round(v[(lv- lv%%NbItemPerLine + 1):lv],Round),'\n')
+  }
+}
+```
+
+```{r xaringan-scribble, echo=FALSE}
+xaringanExtra::use_scribble()
+```
+
+---
+class: middle, inverse, center
+
+# Warm-up
+
+## Refresher and technical results
+
+---
+## Prerequisites
+
+.pull-left[
+.blue[Gaussian variable manipulation]
+
+- Assume $X_1\sim \N\left(\mu_1,\sigma_1^2\right)$.
+
+.question[quizz1]
+
+- What is the distribution of $aX_1+b$ ? 
+- By product: what is the distribution of $\frac{X_1-\mu_1}{\sigma_1}$
+
+Assume $X_2\sim \N\left(\mu_2,\sigma_2^2\right)$ and $X_1\perp X_2$.
+
+.question[quizz2]
+- What is the distribution of $X_1+X_2$ ?
+]
+
+--
+
+.col-right[
+.blue[An important result]
+
+- Assume $X_1,...,X_n\sim\N(\mu,\sigma^2),$ i.i.d.. Then
+
+$$\frac{1}{\sigma^2}\sum_{i=1}^n (X_i- \overline{X})^2 \sim \chi^2(n-1)$$
+]
+
+---
+## Introducing the Student distribution
+
+Let $X\sim \N\left(0,1\right)$,  $U\sim \chi^2(n)$, and $X\perp U$.
+
+Define  random variable
+
+$$Z = \frac{X}{\sqrt{U/n}}.$$
+--
+
+Then $Z$ is said to have a Student distribution with degrees of freedom $n$.
+
+One notes
+$$Z \sim \mathcal{T}(n).$$
+
+--
+
+One can show that the distribution of $Z$ is symmetric, _i.e._ its density function satisfies
+
+$$f(-z)= f(z).$$
+
+.question[quizz3]
+
+---
+## Student density 
+
+```{r density_curves_df, echo = FALSE, fig.align='center', fig.width=12, fig.height=6}
+purrr::map(c(1, 2, 4, 8, Inf), ~ tibble(x = seq(-5, 5, by = 0.1), 
+                          y = dt(x, df = .x))) %>% 
+  bind_rows(.id = 'sigma') %>% 
+  mutate(sigma = c(1L, 2L, 4L, 8L, Inf)[as.integer(sigma)]) %>% 
+  ggplot(aes(x = x, y = y, group = sigma, color = factor(sigma))) + geom_line(size = 2) + 
+  labs(y = "density of the student distribution") + 
+  scale_color_brewer(name = "df") + 
+  theme_dark() + 
+  theme(text = element_text(size = 18))
+```
+
+.question[quizz4]
+
+---
+## So far...
+.blue[Estimation]
+
+- Assuming $X_1,...,X_n\sim\L(\theta)$, i.i.d. one can estimate $\theta$ through Maximum Likelihood (ML):
+
+$$\widehat{\theta} = \arg\max_{\theta} Lik_{\theta}(x_1,...,x_n)$$
+
+--
+
+- On several examples, the ML estimator $T$ of parameter $\theta$ exhibits good properties:
+  - low bias, 
+  - MSE decreasing with $n$.
+
+--
+
+- Still, if e.g. $X_1,...,X_n$ are continuous random variables, then
+$$P\left(T= \theta\right) = 0$$
+
+---
+## Confidence interval
+
+Instead of providing a single value, provide a **range** of values such that
+
+$$ P(L \leq \theta \leq U) = 1 - \alpha$$
+where 
+
+- $L$ and $U$ can be computed from the data,
+- the **confidence level** $\alpha$ is **chosen** by the user.
+
+---
+## Pivotal statistic
+
+In the previous general framework where
+$$X_1,...,X_n\sim\L(\theta) \text{, i.i.d.}$$
+obtaining a confidence interval will require the following concepts:
+
+--
+
+.def[Definition]
+
+Let $T_{pv}$ be a score function (ie a function with values in $\mathbb{R}$) that depends on the data and on the unknown parameter $\theta$:
+
+$$T_{pv}=f(X_1,...,X_n,\theta)$$
+
+If the .blue[distribution] of $T_{pv}$ is known and does not depend on $\theta$ (or any other unknown quantity), then $T_{pv}$ is called a **pivotal statistic**.
+
+--
+
+.blue[Two questions]
+- How to find a pivotal statistic ?
+- How to use it to build a confidence interval ?
+
+---
+class: middle, inverse, center
+
+# Example 1
+
+## Weighing scale precision
+
+---
+## Example 1: Weighing scale precision
+
+```{r}
+NbWeights <- 15
+TrueSigma <- 0.002
+Weights <- round(rnorm(NbWeights,1,TrueSigma),5)
+Alpha = 0.05
+```
+
+
+A biologist needs a new weighing machine.
+
+--
+
+A manufacturer proposes a new machine for which the precision is claimed to be of $10^{-3}\mu g$. 
+
+--
+
+
+The biologist performs a trial where the same object of weight 1 $\mu g$ is weighted `r NbWeights` times. 
+
+--
+
+The obtained measurements are the following:
+
+```{r,comment=NA}
+DisplayVect(Weights,NbItemPerLine=5,Round=5)
+```
+
+--
+
+Assuming the scale is unbiased, is the manufacturer honest ?
+  - Is the accuracy small enough compared to $10^{-3}\mu g$
+
+---
+## Modeling
+
+Denote $W_i$ the measurement obtained for the $i^{th}$ weighting.
+
+- One assumes that measurements are independent:
+$$W_1\perp W_2\perp... \perp W_{`r NbWeights`}$$
+
+- Measurements are continuous
+$$W_1,..., W_{`r NbWeights`}  \sim \N\left(\bullet, \bullet\right), \text{ i.i.d}$$
+
+- The scale is unbiased
+$$W_1,..., W_{`r NbWeights`} \sim \N(1,\bullet), \text{ i.i.d}$$
+
+- The scale precision is unknown
+$$W_1,..., W_{`r NbWeights`} \sim \N(1,\sigma^2), \text{ i.i.d}$$
+
+--
+
+.blue[Objective]: propose an interval for the scale precision $\sigma$.
+
+
+---
+## Estimation
+
+In most cases $T_{pv}$ is derived from the ML estimator of the quantity of interest...
+
+$$\begin{eqnarray*}
+Lik_\sigma(w_1,...,w_n) &=& \prod_{i=1}^n f_\sigma(w_i) \quad\text{(i.i.d. assumption)}\\
+  &=& \prod_{i=1}^n \frac{1}{\sqrt{2\pi}\sigma}\exp\left\{-\frac{1}{2}\frac{(w_i-1)^2}{\sigma^2}\right\} \\
+\Rightarrow LLik_\sigma(w_1,...,w_n) &=& -n\log(\sqrt{2\pi}) -n\log(\sigma) -\frac{1}{2\sigma^2}\sum_{i=1}^n (w_i-1)^2
+\end{eqnarray*}$$
+
+--
+
+.blue[Derivation]
+
+$$\begin{equation}
+\frac{\partial LLik_\sigma(w_1,...,w_n)}{\partial \sigma}=  -\frac{n}{\sigma} + \frac{1}{\sigma^3}\sum_{i=1}^n (w_i-1)^2
+\end{equation}$$
+
+Setting the derivative at 0, one gets: 
+$$\widehat{\sigma}^2 = \frac{1}{n}\sum_{i=1}^n (w_i-1)^2$$
+
+---
+## Pivotal statistic
+
+The ML estimator of $\sigma^2$ is $S^2 = \frac{1}{n}\sum_i(W_i-1)^2$.
+What is the distribution of $S^2$ ? .question[quizz5]
+
+--
+$$\frac{n}{\sigma^2}S^2\sim \chi^2(n)$$
+
+--
+
+Let $T=\frac{n}{\sigma^2}S^2$. One can observe that
+
+- $T$ depends on the data,
+
+- $T$ depends on $\sigma^2$,
+
+- $T$ has a known distribution that does not depend on $\sigma^2$,
+
+.blue[Conclusion] $\Rightarrow T$ is a pivotal statistic $T\rightarrow T_{pv}$.
+
+---
+## Probability interval
+
+```{r}
+Coef <- 2
+TH <- theme(axis.text=element_text(size=10*Coef),
+      axis.title=element_text(size=15*Coef),
+      plot.title=element_text(size=15*Coef),
+      strip.text.x = element_text(size = 20*Coef),
+      legend.text=element_text(size=12*Coef),
+      legend.title = element_text(size=15*Coef))
+
+GG <- ggplot(data.frame(x = c(0, 40)), aes(x)) +
+  stat_function(fun = dchisq,args = list(df=NbWeights),size=2) +
+  stat_function(fun = dchisq,args = list(df=NbWeights),
+                xlim = c(0,qchisq(p = Alpha/2,df = NbWeights)),
+                geom = "area",fill=2) +
+  stat_function(fun = dchisq,args = list(df=NbWeights),
+                xlim = c(qchisq(p = 1-Alpha/2,df = NbWeights),40),
+                geom = "area",fill=2) +
+  ylab('Value') + xlab('Density') + ggtitle(paste('Khi 2 distribution (df=',NbWeights,')')) +
+  TH
+# ggsave(plot = GG,filename = 'QuantilesKhi2.pdf',device = 'pdf')
+```
+
+.pull-left[
+One seeks values $a$ and $b$ such that
+$$ P( a \leq T_{pv} \leq b) = 1-\alpha  $$
+A possible strategy is to set
+
+- $a=c_{n,\frac{\alpha}{2}}$
+
+- $b=c_{n,1-\frac{\alpha}{2}}$
+
+where $c_{n,u}$ is the $u$ order quantile of the $\chi^2(n)$ distribution.
+]
+
+--
+
+.pull-right[
+```{r, fig.width = 6, fig.height=4}
+GG
+```
+]
+
+---
+## Probability interval (II)
+
+One then has 
+
+--
+
+$$\begin{eqnarray*}
+&& P\left(c_{n,\frac{\alpha}{2}} \leq \frac{n}{\sigma^2}S^2 \leq c_{n,1-\frac{\alpha}{2}}\right) = 1-\alpha \\
+\Rightarrow && P\left( \frac{c_{n,\frac{\alpha}{2}}}{nS^2} \leq \frac{1}{\sigma^2} \leq \frac{c_{n,1-\frac{\alpha}{2}}}{nS^2} \right) = 1-\alpha \\
+\Rightarrow && P\left( \frac{nS^2}{c_{n,1-\frac{\alpha}{2}}} \leq \sigma^2 \leq \frac{nS^2}{c_{n,\frac{\alpha}{2}}} \right) = 1-\alpha \\
+\Rightarrow && P\left( \sigma \in \left[ \sqrt{\frac{nS^2}{c_{n,1-\frac{\alpha}{2}}}};\ \sqrt{\frac{nS^2}{c_{n,\frac{\alpha}{2}}}} \right] \right) = 1-\alpha
+\end{eqnarray*}$$
+
+---
+## Confidence interval
+
+```{r}
+Sigma2Hat <- round(mean((Weights-1)**2),8)
+q.low <- round(qchisq(p = Alpha/2,df = NbWeights),2)
+q.up <- round(qchisq(p = 1-Alpha/2,df = NbWeights),2)
+Lower <- sqrt(NbWeights*Sigma2Hat/q.up)
+Upper <- sqrt(NbWeights*Sigma2Hat/q.low)
+```
+
+
+.blue[Application]
+
+One has
+
+- $n=$ `r NbWeights`
+- $\widehat{\sigma}^2 = \frac{1}{n}\sum_i(w_i-1)^2= `r Sigma2Hat`$
+
+--
+
+Assume one wants a confidence interval at level `r 100*(1-Alpha)`%, then
+- $\alpha=$ `r Alpha`
+
+- $c_{`r NbWeights`,`r Alpha/2`}=$ `r q.low`
+
+- $c_{`r NbWeights`,`r 1-Alpha/2`}=$ `r q.up`
+
+Consequently, one has
+
+$$\text{IC}_{`r 1-Alpha`}(\sigma) = \left[ `r  round(Lower,4)` ;\ `r  round(Upper,4)`  \right].$$
+
+.blue[Conclusion ?]
+
+---
+## Some comments
+
+Recall
+
+$$\begin{equation}
+\text{IP}_{1-\alpha}(\sigma) = \left[ S\sqrt{\frac{n}{c_{n,1-\frac{\alpha}{2}}}};\ S \sqrt{\frac{n}{c_{n,\frac{\alpha}{2}}}} \right]
+\end{equation}$$
+
+--
+
+```{r,fig.height=4, fig.align='center', fig.width=12}
+L <- function(n,alpha,estimate){
+  q.up <- qchisq(p = 1-alpha/2,df = n)
+  Lower <- sqrt(n/q.up)
+}
+U <- function(n,alpha,estimate){
+  q.low <- qchisq(p = alpha/2,df = n)
+  Upper <- sqrt(n/q.low)
+}
+
+DF.alpha <- data.frame(Alpha=seq(0.01,0.25,length.out = 1000)) %>%
+  mutate(Lower = L(NbWeights,Alpha,TrueSigma),Upper = U(NbWeights,Alpha,TrueSigma)) %>%
+  tidyr::gather(key = "Bound", value = "Value",-Alpha)
+DF.n <- data.frame(N=seq(10,1000,1)) %>%
+  mutate(Lower = L(N,Alpha,TrueSigma),Upper = U(N,Alpha,TrueSigma)) %>%
+  tidyr::gather(key = "Bound", value = "Value",-N)
+
+Coef=1.2
+TH <- theme(axis.text=element_text(size=10*Coef),
+      axis.title=element_text(size=15*Coef),
+      plot.title=element_text(size=15*Coef),
+      strip.text.x = element_text(size = 20*Coef),
+      legend.text=element_text(size=12*Coef),
+      legend.title = element_text(size=15*Coef))
+GG.alpha <- ggplot(DF.alpha,aes(y=Alpha,x=Value,col=Bound)) +
+  geom_line(size=2) +
+  ylab('Alpha') + xlab('Value') + ggtitle('Coeff. evolution w.r.t. alpha')  +
+  TH
+GG.n <- ggplot(DF.n,aes(y=N,x=Value,col=Bound)) +
+  geom_line(size=2) +
+  ylab('Sample size') + xlab('Value') + ggtitle('Coeff. evolution w.r.t. n')  +
+  TH
+grid.arrange(grobs=list(GG.alpha,GG.n),nrow=1)
+
+```
+$n$ fixed at 15 and $\alpha$ fixed at 0.05
+
+---
+class: middle, inverse, center
+
+# Example 2
+
+## Number of bacteriophages
+
+---
+## Example 2: Infection
+
+```{r}
+## Parameters
+NbBactos <- 20
+Lambda <- 2
+Alpha2 <- 0.05
+
+## Generate data
+set.seed(42)
+NbPhages <- rpois(n = NbBactos, lambda = Lambda)
+
+S = sum(NbPhages)
+M = mean(NbPhages)
+
+## Find the confidence interval using normal approx + plug-in
+LambdaHat= M
+q.norm = round(qnorm(p = 1-Alpha2/2),3)
+lower.1 <- M - q.norm*sqrt(M/NbBactos)
+upper.1 <- M + q.norm*sqrt(M/NbBactos)
+
+## Find the confidence interval using normal approx only
+SqrtDelta <- NbBactos*q.norm*sqrt(4*S+q.norm**2)
+lower.2 <- M + (q.norm**2)/(2*NbBactos) - SqrtDelta/(2*NbBactos**2)
+upper.2 <- M + q.norm**2/(2*NbBactos) + SqrtDelta/(2*NbBactos**2)
+
+# Verif <- function(l){
+#   S**2 + (NbBactos*l)**2 - 2*S*l*NbBactos - NbBactos*l*q.norm**2
+# }
+# Verif(lower.2)
+# Verif(upper.2)
+```
+
+A biologist runs an experiment to investigate the infection of a colony of bacteria by bacteriophages. 
+
+--
+
+A given bacterium can be infected by one or several phages. 
+
+--
+
+The biologist sampled `r NbBactos` bacteria in the colony and observed the following number of phages per bacteria:
+
+```{r}
+DisplayVect(v = NbPhages,NbItemPerLine = 10,Round = 0)
+```
+
+--
+
+.blue[Objective]
+Provide a confidence interval for the proportion of uninfected bacterias in the colony.
+
+---
+## Modeling
+
+Denote $X_i$ the number of phages obtained for the $i^{th}$ bacterium.
+
+- One assumes that bacteria are independent:
+
+$$X_1\perp X_2\perp... \perp X_{n},\quad\text{with } n= `r NbBactos`$$
+
+- Measurements are discrete
+
+$$X_1,..., X_{n}  \sim \P (\bullet), \text{ i.i.d}$$
+
+- The infection level is unknown
+
+$$X_1,..., X_{n} \sim \P(\lambda), \text{ i.i.d}$$
+
+.blue[Objective]
+
+Propose a confidence interval for the proportion $P(X=0)=e^{-\lambda}$.
+
+---
+## Estimation
+
+Starting point: derive the ML estimator for the quantity of interest.
+
+$$\begin{eqnarray}
+Lik_\lambda(x_1,...,x_n) &=& \prod_{i=1}^n P_\lambda(X_i=x_i) \quad\text{(i.i.d. assumption)}\\
+  &=& \prod_{i=1}^n \frac{\lambda^{x_i}}{x_i!}e^{-\lambda} \\
+\Rightarrow LLik_\lambda(x_1,...,x_n) &=& \log(\lambda)\sum_{i=1}^{n}x_i - \sum_{i=1}^{n}\log(x_i!) - n\lambda
+\end{eqnarray}$$
+
+.blue[Derivation]
+
+$$\frac{\partial LLik_\lambda(x_1,...,x_n)}{\partial \lambda}=  \frac{1}{\lambda}\sum_{i=1}^n x_i -n$$
+
+Setting the derivative at 0, one gets: $\widehat{\lambda} = \frac{1}{n}\sum_{i=1}^n x_i$.
+
+---
+## Pivotal statistic
+
+The ML estimator of $\lambda$ is $\overline{X} = \frac{1}{n}\sum_i X_i$.
+
+What is the distribution of $\overline{X}$ ?
+
+$$n\overline{X} \sim \P(n\lambda)$$
+
+Proof: your turn! (sum of independent Poisson)
+
+--
+
+One can observe that $n\overline{X}$ depends on the data, but
+
+- $n\overline{X}$ does not depend on $\lambda$,
+
+- $n\overline{X}$ has a known distribution but it depends on $\lambda$,
+
+$\Rightarrow n\overline{X}$ is **not** a pivotal statistic.
+
+---
+## Gaussian approximation
+
+.pull-left[
+
+.blue[Central limit theorem]
+
+Let $X_1,...,X_n$ be $n$ i.i.d. quantitative random variables with mean $\mu$ and variance $\sigma^2$.
+
+Let $S_n = \sum_i X_i$.
+
+Then, for $n$ large, one has
+
+$$\frac{S_n-n\mu}{\sigma\sqrt{n}} \overset{approx}{\sim} \N(0,1)$$
+]
+
+--
+
+.pull-right[
+.blue[Application]
+
+Back to our infection example, one has
+
+$$n\overline{X} = \sum_i X_i$$
+
+where the $X_i$'s are i.i.d. with $E[X_i]=V[X_i]=\lambda$. 
+
+Then
+
+$$ T = \frac{n\overline{X}-n\lambda}{\sqrt{n\lambda}} \overset{approx}{\sim} \N(0,1)$$
+
+(assuming $n$ is... "big enough"!)
+
+Then $T$ is a pivotal statistic: $T\rightarrow T_{pv}$.
+]
+
+---
+## Probability interval
+
+```{r}
+Coef <- 2
+TH <- theme(axis.text=element_text(size=10*Coef),
+      axis.title=element_text(size=15*Coef),
+      plot.title=element_text(size=15*Coef),
+      strip.text.x = element_text(size = 20*Coef),
+      legend.text=element_text(size=12*Coef),
+      legend.title = element_text(size=15*Coef))
+
+GG <- ggplot(data.frame(x = c(-4, 4)), aes(x)) +
+  stat_function(fun = dnorm,args = list(mean=0,sd=1),size=2) +
+  stat_function(fun = dnorm,args = list(mean=0,sd=1),
+                xlim = c(-4,qnorm(p = Alpha/2)),
+                geom = "area",fill=2) +
+  stat_function(fun = dnorm,
+                xlim = c(qnorm(p = 1-Alpha/2),4),
+                geom = "area",fill=2) +
+  ylab('Value') + xlab('Density') + ggtitle(paste('N(0,1) distribution')) +
+  TH
+## ggsave(plot = GG,filename = 'QuantilesNorm.pdf',device = 'pdf')
+```
+
+.pull-left[
+One seeks values $a$ and $b$ such that
+
+$$ P( a \leq T_{pv} \leq b) = 1-\alpha  $$
+An **optimal** strategy is to set 
+
+- $a=u_{\frac{\alpha}{2}}=-u_{1-\frac{\alpha}{2}}$
+
+- $b=u_{1-\frac{\alpha}{2}}$
+
+where $u_{q}$ is the $q$ order quantile of the $\N(0,1)$ distribution.
+]
+
+--
+
+.pull-right[
+```{r, fig.align='center'}
+GG
+```
+]
+
+---
+## Probability interval (II)
+
+$$\begin{eqnarray}
+&& P\left( -u_{1-\frac{\alpha}{2}} \leq \frac{n\overline{X}-n\lambda}{\sqrt{n\lambda}} \leq u_{1-\frac{\alpha}{2}} \right) = 1-\alpha
+\end{eqnarray}$$
+
+To obtain the probability interval, one then needs to "isolate" $\lambda$...
+
+---
+### First strategy: exact computation
+
+Note that
+
+$$\begin{eqnarray}
+&& P\left( -u_{1-\frac{\alpha}{2}} \leq \frac{n\overline{X}-n\lambda}{\sqrt{n\lambda}} \leq u_{1-\frac{\alpha}{2}} \right) = 1-\alpha \\
+\Rightarrow && P\left( \left| \frac{n\overline{X}-n\lambda}{\sqrt{n\lambda}} \right| \leq u_{1-\frac{\alpha}{2}} \right) = 1-\alpha \\
+\Rightarrow && P\left( \left( n\overline{X}-n\lambda \right)^2 \leq u_{1-\frac{\alpha}{2}}^2n\lambda \right) = 1-\alpha \\
+\Rightarrow && P\left( n^2\lambda^2 - n\left(2n\overline{X} + u_{1-\frac{\alpha}{2}}^2\right)\lambda + n^2\overline{X}^2  \leq 0 \right) = 1-\alpha \\
+\end{eqnarray}$$
+
+--
+
+To get the lower and upper bounds one needs to find the solutions of the 2nd order equation. One obtains:
+
+$$P\left( \lambda \in \left[ \overline{X} + \frac{u_{1-\frac{\alpha}{2}}^2}{2n}\quad \pm \quad \frac{nu_{1-\frac{\alpha}{2}}\sqrt{u_{1-\frac{\alpha}{2}}^2 +4n\overline{X}}}{2n^2}       \right] \right) = 1 - \alpha$$
+
+---
+### Second strategy: plug-in approximation
+
+Proceed naively
+
+$$\begin{eqnarray}
+&& P\left( -u_{1-\frac{\alpha}{2}} \leq \frac{n\overline{X}-n\lambda}{\sqrt{n\lambda}} \leq u_{1-\frac{\alpha}{2}} \right) = 1-\alpha \\
+\Rightarrow && P\left( -u_{1-\frac{\alpha}{2}}\sqrt{n\lambda} \leq n\overline{X}-n\lambda \leq u_{1-\frac{\alpha}{2}}\sqrt{n\lambda} \right) = 1-\alpha \\
+\Rightarrow && P\left( n\overline{X}-u_{1-\frac{\alpha}{2}}\sqrt{n\lambda} \leq n\lambda \leq n\overline{X} + u_{1-\frac{\alpha}{2}}\sqrt{n\lambda} \right) = 1-\alpha \\
+\Rightarrow && P\left( \overline{X}-u_{1-\frac{\alpha}{2}}\sqrt{\frac{\lambda}{n}} \leq \lambda \leq \overline{X} + u_{1-\frac{\alpha}{2}}\sqrt{\frac{\lambda}{n}} \right) = 1-\alpha \\
+\end{eqnarray}$$
+
+--
+
+Now replace $\lambda$ in the bounds by its estimator...
+
+$$\begin{eqnarray}
+&& P\left( \overline{X}-u_{1-\frac{\alpha}{2}}\sqrt{\frac{\overline{X}}{n}} \leq \lambda \leq \overline{X} + u_{1-\frac{\alpha}{2}}\sqrt{\frac{\overline{X}}{n}} \right) = 1-\alpha \\
+\Rightarrow && P\left( \lambda \in\left[ \overline{X}\quad \pm \quad u_{1-\frac{\alpha}{2}}\sqrt{\frac{\overline{X}}{n}}  \right]   \right) = 1-\alpha
+\end{eqnarray}$$
+
+---
+## Confidence interval
+
+.blue[Application]
+One has
+
+- $n=$ `r NbBactos`
+
+- $\widehat{\lambda} = \frac{1}{n}\sum_ix_i= `r LambdaHat`$
+
+Assume one wants a confidence interval at level `r 100*(1-Alpha)`%, then
+
+- $\alpha=$ `r Alpha`
+
+- $u_{1-\frac{\alpha}{2}}=$ `r q.norm`
+
+Exact strategy : 
+$$\text{IC}_{`r 1-Alpha`}(\lambda) = \left[ `r  round(lower.2,2)` ;\ `r  round(upper.2,2)`  \right]$$
+
+Plug-in strategy : $\text{IC}_{`r 1-Alpha`}(\lambda) = \left[`r  round(lower.1,2)` ;\ `r  round(upper.1,2)` \right].$
+
+.blue[Conclusion ?]
+
+--
+
+$$ P(X=0) = e^{-\lambda}\Rightarrow \text{IC}_{`r 1-Alpha`}(e^{-\lambda}) = \left[ `r  round(exp(-upper.2),2)` ;\ `r  round(exp(-lower.2),2)`  \right] \text{ or } \left[ `r  round(exp(-upper.1),2)` ;\ `r  round(exp(-lower.1),2)`  \right]$$
+}
+
+
+---
+## Summary
+
+.blue[General strategy]
+
+Assume $X_1,...,X_n\sim \L(\theta)$ i.i.d.
+
+To get a confidence interval for $\theta$
+
+- 1/ Find the ML estimator $T$ of $\theta$
+
+- 2/ Find a pivotal statistic $T_{pv}$ using
+  - either the exact distribution of $T$,
+  - or an approximate (normal) distribution based on CLT.
+
+- 3/ Find a probability interval
+  - either by isolating $\theta$,
+  - or using the plug-in strategy wherever necessary.
+
+- 4/ Choose a confidence level $1-\alpha$ and compute the CI.
+
+--
+
+.blue[and don't forget...]
+
+**estimator** $\neq$ **estimate** and **probability** $\neq$ **confidence** interval.
+
+---
+## Exercise 1: maize yield analysis
+
+```{r}
+## Parameters
+NbLines <- 18
+Alpha2 <- 0.05
+
+set.seed(2108)
+CF <- tibble(ID = 1:261, Yield = rnorm(length(ID), mean = 16, sd = 2))[1:NbLines, ]
+
+## Find the confidence interval using normal approx + plug-in
+q.norm = round(qnorm(p = 1-Alpha2/2),3)
+lower.1 <- M - q.norm*sqrt(M/NbBactos)
+upper.1 <- M + q.norm*sqrt(M/NbBactos)
+```
+
+Consider here the grain yield measurement obtained from `r NbLines` dent lines:
+
+```{r}
+DisplayVect(CF$Yield,NbItemPerLine = 7,Round = 2)
+```
+
+$Hint:$ Quantiles tables are available in the following slides...
+
+--
+
+1/ Provide an exact probability interval for the yield variance in the dent population, and a confidence interval at level 0.95%.
+
+2/ Provide an exact probability interval for the yield mean in the dent population, and a confidence interval at level 0.95%
+
+---
+## Solution
+
+--
+
+```{r}
+s <- var(CF$Yield) |> sqrt()
+alpha <- 0.05
+s_upper <- s * sqrt(NbLines / qchisq(alpha/2, df = NbLines - 1))
+s_lower <- s * sqrt(NbLines / qchisq(1 - alpha/2, df = NbLines - 1))
+mu <- mean(CF$Yield)
+mu_lower <- mu + qt(alpha/2, df = NbLines - 1) * s / sqrt(NbLines)
+mu_upper <- mu + qt(1-alpha/2, df = NbLines - 1) * s / sqrt(NbLines)
+```
+
+
+We model the yields $Y_i$ as i.i.d variables with distribution $\N(\mu,\sigma^2)$ and $n = 18$.
+
+The estimates for the mean is $\hat{\mu} =$ `r mean(CF$Yield) %>% round(2)` and for the variance is $\hat{\sigma}^2$ = `r var(CF$Yield) %>% round(2)`. 
+
+Remember that 
+
+$$
+\frac{1}{\sigma^2} \sum_{i=1}^n (Y_i - \bar{Y})^2 = \frac{(n-1)S^2}{\sigma^2} \sim \chi^2(n-1) \quad \text{and} \quad \frac{\bar{Y} - \mu}{S/\sqrt{n}} \sim \mathcal{T}(n-1)
+$$
+.blue[Probability Intervals]
+
+.pull-left[
+$$P\left( \sigma \in \left[ \sqrt{\frac{(n-1)S^2}{c_{n-1,1-\frac{\alpha}{2}}}};\ \sqrt{\frac{(n-1)S^2}{c_{n-1,\frac{\alpha}{2}}}} \right] \right) = 1-\alpha$$
+
+$$\text{IC}_{0.95}(\sigma) = [`r s_lower |> round(2)`;  `r s_upper |> round(2)`]$$
+]
+
+.col-right[
+$$P\left( \mu \in \left[ \bar{Y} \pm t_{n-1, \alpha/2} \frac{S}{\sqrt{n}} \right] \right) = 1-\alpha$$
+$$\text{IC}_{0.95}(\mu) = [`r mu_lower |> round(2)`;  `r mu_upper |> round(2)`]$$
+]
+
+---
+#### Table of the  $\N(0,1)$ quantiles
+
+```{r, fig.align='center'}
+knitr::include_graphics("Figures/QuantilesNormaleCentreeReduite.png", dpi = 120)
+```
+
+---
+#### Table of the $\chi^2\left(k\right)$ quantiles
+
+```{r, fig.align='center'}
+knitr::include_graphics("Figures/TableQuantilesKhi2.png", dpi = 120)
+```
+
+---
+#### Table of the  $\mathcal{T}(k)$ quantiles
+
+```{r, fig.align='center'}
+knitr::include_graphics("Figures/TableQuantilesStudent.png", dpi = 120)
+```

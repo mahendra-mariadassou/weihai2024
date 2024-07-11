@@ -1,0 +1,530 @@
+---
+title: "Bivariate Analysis"
+author: "Mahendra Mariadassou, INRAE <br> .small[from original slides by Tristan Mary-Huard]"
+date: "Shandong University, Weihai (CN)<br>Summer School 2024"
+output:
+  xaringan::moon_reader:
+    chakra: libs/remark-latest.min.js
+    css: ["css/custom_weihai_ss.css", default]
+    lib_dir: libs
+    nature:
+      ratio: '16:9'
+      slideNumberFormat: '%current%'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+    includes:
+      before_body: macros.html
+height: 1080
+width: 1920
+---
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE,comment=NA,message=FALSE)
+library('tidyverse')
+library('gridExtra')
+library(data.table)
+library(scales)
+```
+
+## The AgroParisTech dataset
+
+.question[quizz0]
+
+```{r}
+set.seed(42)
+n <- 731
+Agro <- tibble(Gender = sample(c("F", "M"), size = n, prob = c(0.7, 0.3), replace = TRUE), 
+               Age    = sample(19:23, size = n, prob = 5:1, replace = TRUE), 
+               Year   = case_when(
+                 Age == 19 ~ "1A", 
+                 Age >= 22 ~ "3A",
+                 Age == 20 ~ sample(c("1A", "2A"), size = n, replace = TRUE), 
+                 Age == 21 ~ sample(c("2A", "3A"), size = n, replace = TRUE), 
+               ),
+               Height = if_else(Gender == "M", rnorm(n = n, mean = 178, sd = 6), rnorm(n = n, mean = 165, sd = 4)), 
+               Weight = runif(n, min = 18, max = 25) * (Height/100)^2 %>% round(2))
+Agro <- Agro %>% select(all_of(c('Height','Weight','Age', 'Year', 'Gender')))
+DT::datatable(Agro) %>% DT::formatRound(columns = c("Height", "Weight"), digits = 1)
+```
+
+---
+class: middle, inverse, center
+
+# Motivating example
+
+---
+## The AgroParisTech dataset
+
+- 731 individuals
+
+- 2 **qualitative** variables: Gender, Year
+
+- 3 **quantitative** variables: Height, Weight, Age
+
+--
+
+How can we investigate the .blue[joint] distribution of 2 descriptors in a population ?  
+
+--
+
+.blue[3 kinds of joint analysis]:  
+
+.pull-left[
+- qualitative - qualitative   
+- quantitative - qualitative  
+- quantitative - quantitative  
+]
+
+.pull-right[
+- Ex: Gender and Year  
+- Ex: Height and Gender  
+- Ex: Height and Weight  
+]
+
+---
+class: middle, inverse, center
+
+# Qualitative - Qualitative
+
+---
+## Qualitative - Qualitative
+
+The couple (`Gender`,`Year`) is directly described through its joint distribution
+
+$$P\left(G=g\bigcap Y=y \right) = \frac{n_{gy}}{n} \ \ .$$
+
+The contingency table displays exhaustive information: .question[Quizz1]
+
+.pull-left[
+```{r}
+Agro  |>  
+  janitor::tabyl(Year, Gender) |> 
+  janitor::adorn_totals(where = "col")  |> 
+  janitor::adorn_totals(where = "row")
+```
+]
+
+--
+
+.col-right[
+```{r}
+Agro  |>  
+  janitor::tabyl(Year, Gender) |> 
+  janitor::adorn_totals(where = "col")  |> 
+  janitor::adorn_totals(where = "row") |> 
+  janitor::adorn_percentages(denominator = "all") |> 
+  janitor::adorn_rounding(digits = 3)
+```
+]
+
+--
+
+.pull-left[
+```{r}
+Agro  |>  
+  janitor::tabyl(Year, Gender) |> 
+  janitor::adorn_totals(where = "col")  |> 
+  janitor::adorn_percentages(denominator = "row") |> 
+  janitor::adorn_rounding(digits = 3)
+```
+]
+
+--
+
+.col-right[
+```{r}
+Agro  |>  
+  janitor::tabyl(Year, Gender) |> 
+  janitor::adorn_totals(where = "row")  |> 
+  janitor::adorn_percentages(denominator = "col") |> 
+  janitor::adorn_rounding(digits = 3)
+```
+]
+
+---
+#### Graphical representations 
+
+.pull-left[
+- All counts
+```{r, fig.height=3.5}
+ggplot(Agro, aes(x = Gender, fill = Year)) + geom_bar() + scale_fill_viridis_d()
+```
+]
+
+--
+
+.col-right[
+- Percentages proportional to area
+```{r, fig.height=3.5, message=FALSE}
+plotdata <- Agro |> count(Gender, Year) |> group_by(Gender) |> 
+  mutate(width = sum(n), 
+         ymax = cumsum(n)/width, 
+         ymin = cumsum(c(0, head(n, -1)))/width) |> 
+  ungroup()
+x_data <- plotdata %>% distinct(Gender, width) %>% 
+               mutate(xmax = cumsum(width),
+                      xmin = cumsum(c(0, head(width, -1))))
+plotdata <- plotdata %>% inner_join(x_data)
+ggplot(plotdata, aes(xmin = xmin, xmax = xmax, ymin = ymin, ymax = ymax, fill = Year)) + 
+  geom_rect(color = "gray20") + 
+  scale_fill_viridis_d() + 
+  scale_x_continuous(breaks = x_data %>% mutate(x = (xmax + xmin)/2) %>% pull(x), 
+                     labels = x_data$Gender, name = "Gender")
+# ggplot(Agro, aes(x = Gender, fill = Year)) + scale_fill_viridis_d()
+```
+]
+
+--
+
+.pull-left[
+- Conditional probabilities (by Gender)
+```{r, fig.height=3.5}
+ggplot(Agro, aes(x = Gender, fill = Year)) + geom_bar(position = "fill") + scale_fill_viridis_d()
+```
+]
+
+--
+
+.col-right[
+- Conditional probabilities (by Year)
+```{r, fig.height=3.5}
+ggplot(Agro, aes(x = Year, fill = Gender)) + geom_bar(position = "fill") + coord_flip()
+```
+]
+
+---
+class: middle, inverse, center
+
+# Quantitative - Qualitative
+
+---
+## Quantitative - Qualitative
+
+```{r}
+TH <- theme(axis.text=element_text(size=15),
+      axis.title=element_text(size=25),
+      axis.title.y=element_blank(),
+      plot.title=element_text(size=15),
+      strip.text.x = element_text(size = 20),
+      legend.text=element_text(size=20))
+
+Hist1 <- ggplot(Agro, aes(x=Height))+
+  geom_histogram(bins=30,color='black',fill='white')+
+  facet_grid(. ~ Gender, scales = "free_x") +
+  TH
+# ggsave(paste0(Rep,'Slides/Figures/HistHeight1.pdf'))
+Hist2 <- ggplot(Agro, aes(x=Height))+
+  geom_histogram(bins=30,color='black',fill='white')+
+  facet_grid(. ~ Gender) +
+  TH
+# ggsave(paste0(Rep,'Slides/Figures/HistHeight2.pdf'))
+Hist3 <- ggplot(Agro, aes(x=Height, color=Gender, fill=Gender)) +
+  geom_histogram(position="identity", alpha=0.5,bins=30) +
+  TH
+# ggsave(paste0(Rep,'Slides/Figures/HistHeight3.pdf'))
+BP <- ggplot(Agro, aes(x=Gender,y=Height, color = Gender)) +
+  geom_boxplot() + 
+  geom_jitter(width = 0.2, )  +
+  scale_color_discrete(guide = "none") + 
+  TH
+# ggsave(paste0(Rep,'Slides/Figures/BoxPlotHeight.pdf'))
+```
+Each level of variable `Gender` defines a sub-population, in which variable `Height` can be described.
+
+.pull-left[
+```{r, out.height="400px"}
+set.seed(42)
+BP
+```
+]
+.pull-right[
+```{r, out.height="400px"}
+Hist1
+```
+]
+
+- Same graphical tool as for 1 population, but...
+
+---
+## Quantitative - Qualitative
+
+Each level of variable `Gender` defines a sub-population, in which variable `Height` can be described.
+
+.pull-left[
+```{r, out.height="400px"}
+set.seed(42)
+BP
+```
+]
+.pull-right[
+```{r, out.height="400px"}
+Hist2
+```
+]
+
+- Same graphical tool as for 1 population, but .blue[pay attention] to scaling effect...  
+
+---
+## Quantitative - Qualitative
+
+Each level of variable `Gender` defines a sub-population, in which variable `Height` can be described.
+
+.pull-left[
+```{r, out.height="400px"}
+set.seed(42)
+BP
+```
+]
+.pull-right[
+```{r, out.height="400px"}
+Hist3
+```
+]
+
+- Same graphical tool as for 1 population, but .blue[pay attention] to scaling effect or .blue[avoid] them
+
+---
+class: middle, inverse, center
+
+# Quantitative - Quantitative
+
+---
+## Quantitative - Quantitative
+
+As for the univariate case, when dealing with continuous variables the joint distribution cannot be explored exhaustively.
+
+--
+
+**Nevertheless**, graphical representations can be produced:
+
+```{r, fig.height=4, fig.width=6, fig.align='center'}
+TH <- theme(axis.text=element_text(size=7),
+      axis.title=element_text(size=12),
+      plot.title=element_text(size=15),
+      strip.text.x = element_text(size = 20),
+      legend.text=element_text(size=20))
+
+ggplot(Agro, aes(x=Height,y=Weight))+
+  geom_point(size=0.8) +
+  TH
+```
+
+--
+
+The relationship between Height and Weight looks quite linear.
+
+.blue[Question]: How can the linearity of the relationship be quantified ?
+
+---
+## Covariance
+
+.blue[Definition:] The covariance $\sigma_{X,Y}$ between two quantitative variables $X$ and $Y$ is
+
+$$\sigma_{X,Y} = \sum_{i}\sum_{j}\left(x_i-E(X)\right)\left(y_j-E(Y)\right)P\left(X=X_i,Y=y_j\right)$$
+
+
+for quantitative discrete variables, and
+
+$$\sigma_{X,Y} = \int_{x}\int_{y}\left(x-E(X)\right)\left(y-E(Y)\right)\times f_{X,Y}(x,y)dxdy$$
+
+for continuous variables. .question[Quizz2]
+
+--
+
+.blue[Examples:]
+
+- Covariance between Height and Weight: $\sigma_{H,W} = `r with(Agro, cov(Height, Weight))`$
+
+- Covariance between Height (in cm)  and Weight: $\sigma_{H,W} = `r with(Agro, cov(100 * Height, Weight))`$
+
+- Covariance between Weight and Age: $\sigma_{H,A} = `r with(Agro, cov(Weight, Age))`$
+
+--
+
+.blue[Conclusion:]  Scaling makes covariance difficult to interpret.
+
+---
+## Correlation
+
+.blue[Definition:] The correlation $\rho_{X,Y}$ between two quantitative variables $X$ and $Y$ is .question[Quizz3]
+
+$$\rho_{X,Y} = \frac{\sigma_{X,Y}}{\sigma_X \times \sigma_Y} \ \ .$$
+
+--
+
+Division by the standard deviation $\Rightarrow$ get rid of the scaling effect.  
+
+--
+
+.def[Property:]  $\rho_{X,Y} \in [-1,\ 1]$
+
+- $\rho_{X,Y} \approx 1$ $\Rightarrow$ positive linear relationship between $X$ and $Y$,
+
+- $\rho_{X,Y} \approx -1$ $\Rightarrow$ negative linear relationship between $X$ and $Y$,
+
+- $\rho_{X,Y} \approx 0$ $\Rightarrow$ no linear relationship between $X$ and $Y$,
+
+--
+
+.blue[Examples:]
+
+- Correlation between Height and Weight: $\rho_{H,W} = `r with(Agro, cor(Height, Weight))`$
+
+- Correlaion between Height (in cm) and Weight: $\sigma_{H,W} = `r with(Agro, cor(100 * Height, Weight))`$
+
+- Correlation between Height and Age: $\rho_{H,A} = `r with(Agro, cor(Height, Age))`$
+
+
+---
+## Intuition on the covariance (I)
+
+.question[quizz4]
+
+```{r, fig.align='center', fig.width=12, fig.height=6}
+data(datasaurus_dozen, package = "datasauRus")
+ggplot(datasaurus_dozen %>% filter(dataset %in% c("slant_up", "slant_down", "h_lines", "v_lines", "x_shape")), 
+       aes(x = x, y = y, colour = dataset))+
+  geom_point() +
+  theme_void() +
+  theme(legend.position = "none", strip.text = element_text(size = 20)) +
+  facet_wrap(~dataset, ncol = 3)
+```
+
+---
+## Intuition on the covariance (II)
+
+.alert[All] dataset have the same summary statistics (and the same correlation $\rho = -0.06$) !!
+
+```{r, fig.align='center', fig.width=12, fig.height=6}
+data(datasaurus_dozen, package = "datasauRus")
+ggplot(datasaurus_dozen %>% filter(dataset %in% c("slant_up", "slant_down", "h_lines", "v_lines", "x_shape", "dino")), 
+       aes(x = x, y = y, colour = dataset))+
+  geom_point() +
+  theme_void() +
+  theme(legend.position = "none", strip.text = element_text(size = 20)) +
+  facet_wrap(~dataset, ncol = 3)
+```
+
+---
+## About interpretation...
+
+```{r,fig.height=5,fig.width=10,warning=FALSE, fig.align='center'}
+set.seed(42)
+PointSize=3
+TH <- theme(axis.text=element_text(size=12),
+      axis.title=element_text(size=15),
+      plot.title=element_text(size=15),
+      strip.text.x = element_text(size = 20),
+      legend.text=element_blank())
+
+TV <- c(13,20,23,25,27,31,36,46,55,63,70,76,81,85)
+Nb <- c(8,8,9,10,11,11,12,16,18,19,20,21,22,23)
+DF <- data.frame(TV,Nb)
+GG1 <- ggplot(DF,aes(x=TV,y=Nb)) +
+  geom_point(size=PointSize) +
+  xlab('TV sold') +
+  ylab('Nb autism cases') +
+  annotate("text", x = 20, y=22, label = paste('Cor=',round(cor(TV,Nb),2)),
+           color='red',size=5) +
+  ggtitle('TV and mental disease') +
+  TH
+
+X_out <- rnorm(20,m=2,sd=2)
+Y_out <- 5 -0.7*X_out + rnorm(20,m=0,sd=0.7)
+qui <- which.max(X_out)
+Y_out[qui] = 25
+GG2 <- ggplot(data.frame(X_out,Y_out),aes(x=X_out,y=Y_out)) +
+  geom_point(size=PointSize) +
+  annotate("text", x = -0.2, y=24, label = paste('Cor=',round(cor(X_out,Y_out),2)),
+           color='red',size=5) +
+  labs(x = "X", y = "Y") + 
+  xlim(c(min(-1,min(X_out)),max(6,max(X_out)))) +
+  ylim(c(min(-0,min(Y_out)),max(25,max(Y_out)))) +
+  ggtitle('Outlier') +
+  TH
+
+X <- rnorm(40,m=0,sd=1)
+Y <- rnorm(40,m=0,sd=1)
+Z <- c(rep(0,20),rep(1,20))
+X[Z==1] = X[Z==1] + 5
+Y[Z==1] = Y[Z==1] + 3
+GG3 <- ggplot(data.frame(X,Y),aes(x=X,y=Y,color=Z)) +
+  geom_point(size=PointSize, show.legend = FALSE) +
+  annotate("text", x = -1, y=4, label = paste('Cor=',round(cor(X,Y),2)),
+           color='red',size=5) +
+  xlim(c(min(-2,min(X)),max(7,max(X)))) +
+  ylim(c(min(-2,min(Y)),max(5,max(Y)))) +
+  ggtitle("Batch effect") +
+  TH
+
+X <- runif(40,-3,3)
+Y <- 5 -0.7*X^2 + rnorm(20,m=0,sd=0.4)
+GG4 <- ggplot(data.frame(X,Y),aes(x=X,y=Y)) +
+  geom_point(size=PointSize, show.legend = FALSE) +
+  xlim(c(min(-3,min(X)),max(3,max(X)))) +
+  ylim(c(min(-2,min(Y)),max(6,max(Y)))) +
+  annotate("text", x = -2, y=5, label = paste('Cor=',round(cor(X,Y),2)),
+           color='red',size=5) +
+  ggtitle("Non linear relationship") +
+  TH
+
+gridExtra::grid.arrange(grobs=list(GG1,GG2,GG3,GG4) ,nrow = 2, as.table = FALSE)
+```
+
+.blue[Conclusion:]
+
+- Correlation does not mean causality,
+
+- Correlation .alert[does not replace] graphical representation.
+
+---
+## About the effect of the outlier 
+
+```{r, fig.align='center', fig.width=12, fig.height=6}
+GG2 <- GG2 + ggtitle("With outlier")
+
+GG2_bis <- ggplot(tibble(X_out = X_out[-qui],Y_out = Y_out[-qui]),aes(x=X_out,y=Y_out)) +
+  geom_point(size=PointSize) +
+  annotate("text", x = -0.2, y=24, label = paste('Cor=',round(cor(X_out[-qui],Y_out[-qui]),2)),
+           color='red',size=5) +
+  labs(x = "X", y = "Y") + 
+  xlim(c(min(-1,min(X_out[-qui])),max(6,max(X_out[-qui])))) +
+  ylim(c(min(-0,min(Y_out[-qui])),max(25,max(Y_out[-qui])))) +
+  ggtitle('Without outlier') +
+  TH
+
+gridExtra::grid.arrange(grobs=list(GG2, GG2_bis), nrow = 1, as.table = FALSE)
+```
+
+
+
+---
+## Exercise
+
+```{r}
+Diploma <- c(5,-2,2,0,5)
+Income <- c(36,14,21,16,30)
+MeanD <- mean(Diploma)
+MeanI <- mean(Income)
+VarD <- mean((Diploma-MeanD)**2)
+VarI <- mean((Income-MeanI)**2)
+CovDI <- cov(Diploma,Income)*4/5
+CorDI <- cor(Diploma,Income)*4/5
+```
+
+
+An economist investigates the relationship between education level and income in a small firm with 5 employees:
+
+```{r}
+tibble(Name = c("Engineer", "CAP", "DUT", "High School", "Msc"), Diploma, Income)
+```
+
+Compute the expectation and variance per variable, and the covariance and correlation between the education level and income.
+
+--
+
+.blue[Answer]
+
+$\widehat{\mu}_I = 23.4, \ \widehat{\mu}_D = 2,\ \widehat{\sigma}^2_I = 70.24 \ (8.4), \ \widehat{\sigma}^2_D = 7.6\ (2.75)$
+
+$\widehat{\sigma}_{I,D} = 22, \ \widehat{\rho}_{I,D} = 0.95$

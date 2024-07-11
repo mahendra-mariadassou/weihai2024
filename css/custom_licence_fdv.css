@@ -1,0 +1,44 @@
+<style>
+large {font-size:larger}
+alert {color:SteelBlue; font-weight:bold}
+.theorem {
+  background-color: CornSilk;
+  content: "Théorème";
+}
+.theorem:before {
+  display:block;
+  content: inherit;
+  font-weight: bold;
+  font-style: normal;
+}
+.proposition {
+  background-color: LightGreen;
+  content: "Proposition";
+}
+.proposition:before {
+  display:block;
+  content: inherit;
+  font-weight: bold;
+  font-style: normal;
+}
+.definition {
+  background-color: Aquamarine;
+  content: "Définition";
+}
+.definition:before {
+  display:block;
+  content: inherit;
+  font-weight: bold;
+  font-style: normal;
+}
+.exercice {
+  background-color: LightGray;
+  content: "Exercice";
+}
+.exercice:before {
+  display:block;
+  content: inherit;
+  font-weight: bold;
+  font-style: normal;
+}
+</style>

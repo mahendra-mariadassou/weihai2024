@@ -1,0 +1,655 @@
+---
+title: "Sampling"
+author: "Mahendra Mariadassou, INRAE <br> .small[from original slides by Tristan Mary-Huard]"
+date: "Shandong University, Weihai (CN)<br>Summer School 2024"
+output:
+  xaringan::moon_reader:
+    chakra: libs/remark-latest.min.js
+    css: ["css/custom_weihai_ss.css", default]
+    lib_dir: libs
+    nature:
+      ratio: '16:9'
+      slideNumberFormat: '%current%'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+    includes:
+      before_body: macros.html
+height: 1080
+width: 1920
+---
+  
+```{r setup, include=FALSE,comment=NA, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+library(ggplot2)
+library(dplyr)
+```
+
+---
+class: middle, center, inverse
+
+# Technical results
+
+### Mean and variance of a sum
+
+---
+## Refresher
+
+Recall the following definitions/properties:
+
+$$\begin{align}
+E[Y] &= \sum_{k=1}^K y_k P(Y = y_k) \\
+V[Y] &= E\left[ \left(Y-E[Y]\right)^2\right]\\
+     &= E[Y^2]-E[Y]^2\\
+Cov(X,Y) &= E\left[ (X-E[X])(Y-E[Y]) \right]\\
+         &= E[XY]-E[X]E[Y]\\
+\end{align}$$
+
+--
+
+What about:
+
+- $f(Y)$ for a general numeric function $f: \mathbb{R} \to \mathbb{R}$
+
+- $aY + b$ (when $a, b \in \mathbb{R}$)
+
+- $f(X, Y)$ for a general numeric function $f: \mathbb{R}^2 \to \mathbb{R}$
+
+- $X + Y$, $XY$
+
+---
+## Expectation of $f(Y)$
+
+Falling back to the definition, we have
+
+$$
+E[f(Y)] = \sum_{k=1}^K f(y_k) P(Y = y_k)
+$$
+
+In particular, the expectation of $aY + b$ can be expressed simply as 
+
+--
+
+$$
+E[aY + b] = aE[Y] + b
+$$
+
+.blue[Proof:]
+
+--
+
+---
+## Expectation of $f(Y_1, Y_2)$
+
+Falling back to the definition, we have
+
+$$\begin{align}
+E[f(Y_1, Y_2)] & = \sum_{k_1=1}^{K_1} \sum_{k_2=1}^{K_2} f(y_{k_1}, y_{k_2}) P(Y_1 = y_{k_1}, Y_2 = y_{k_2})
+\end{align}$$
+
+In particular, the expectation of $X + Y$ can be expressed simply:
+
+--
+
+$$
+E[Y_1 + Y_2] = E[Y_1] + E[Y_2]
+$$
+--
+Proof:
+
+
+---
+## Another formula for the variance
+
+Using the previous result, we have an alternative form for the variance:
+
+$$
+V[X] = E\left[ (X - E[X])^2 \right] = E[X^2] - E[X]^2
+$$
+
+--
+
+Proof:
+
+$$\begin{align}
+V[X] & = E\left[ (X - E[X])^2 \right] \\
+& = E\left[ X^2 - 2XE[X] + E[X]^2 \right] \\
+& = E[X^2] - 2E\left[XE[X]\right] + E[X]^2 \\
+& = E[X^2] - 2E[X]E\left[X\right] + E[X]^2 \\
+& = E[X^2] - 2E[X]^2+ E[X]^2 \\
+& = E[X^2] - E[X]^2
+\end{align}$$
+
+---
+### Expectation of $Y_1 Y_2$
+
+- The .blue[expectation of a sum] of random variables is the .blue[sum of the expectations]
+- The .blue[expectation of a product] is
+--
+  
+  - no simple formula in general (but important exceptions)
+  - it depends on the covariance between $Y_1$ and $Y_2$
+  
+--
+  
+```{r, fig.width=12, fig.height=3, fig.align = 'center'}
+set.seed(42)
+x <- rnorm(500)
+y <- rnorm(500)
+## center x and y 
+x0 <- x - mean(x)
+y0 <- y - mean(y)
+## Data with various levels of correlations
+data <- tibble(x   = rep(x0, 3), 
+               y   = c(y0, (x0+y0)/2, (-x0+y0)/2), 
+               cov = rep(c("B", "C", "A"), each = length(x0)))
+ggplot(data, aes(x = x, y = y)) + 
+  geom_point(alpha = 0.6) + 
+  facet_wrap(~cov, nrow = 1) + 
+  coord_equal() + 
+  labs(x = expression(Y[1]), y = expression(Y[2])) + 
+  theme(strip.text = element_text(size = 16), axis.title = element_text(size = 16))
+```
+  
+In each case, $E[Y_1] = 0$ and $E[Y_2] = 0$ but we have .question[quizz1]
+
+.pull-left[
+- .blue[A:] $E[Y_1 Y_2] = \dots$
+- .blue[B:] $E[Y_1 Y_2] = \dots$
+- .blue[C:] $E[Y_1 Y_2] = \dots$
+]
+
+--
+
+.pull-right[
+- $E[Y_1 Y_2] = `r mean(x0 * (-x0 + y0)/2) |> round(digits = 2)`$
+- $E[Y_1 Y_2] = `r mean(x0 * y0) |> round(digits = 2)`$
+- $E[Y_1 Y_2] = `r mean(x0 * (x0 + y0)/2) |> round(digits = 2)`$
+]
+
+---
+## Special case of independent variables
+
+If $Y_1$ and $Y_2$ are .alert[independant], noted $Y_1 \perp Y_2$, the result is simpler... 
+
+--
+
+$$\begin{align}
+E[Y_1 Y_2] &= \sum_{k_1=1}^{K_1} \sum_{k_2=1}^{K_2} y_{k_1} \times  y_{k_2} \underbrace{P(Y_1 = y_{k_1}, Y_2 = y_{k_2})}_{= P(Y_1 = y_{k_1}) \times P(Y_2 = y_{k_2})} \\
+& = \sum_{k_1=1}^{K_1} \sum_{k_2=1}^{K_2} y_{k_1} \times  y_{k_2} P(Y_1 = y_{k_1}) \times P(Y_2 = y_{k_2}) \\
+& = \sum_{k_1=1}^{K_1} \sum_{k_2=1}^{K_2} y_{k_1}P(Y_1 = y_{k_1}) \times  y_{k_2}P(Y_2 = y_{k_2}) \\
+& = \left( \sum_{k_1=1}^{K_1} y_{k_1}P(Y_1 = y_{k_1}) \right) \times  \left( \sum_{k_2=1}^{K_2} y_{k_2}P(Y_2 = y_{k_2}) \right) \\
+& = E[Y_1] \times E[Y_2]
+\end{align}$$
+
+--
+
+- In particular $Cov(Y_1, Y_2) = E[Y_1 Y_2] - E[Y_1]E[Y_2] = 0$
+- More generally, $E[g_1(Y_1) \times g_2(Y_2)] = E[g_1(Y_1)] \times E[g_2(Y_2)]$
+
+---
+## Variance of a sum
+
+Using the previous result, we have
+
+$$
+V(Y_1 + Y_2) = \dots 
+$$
+
+--
+
+$$\begin{align}
+V(Y_1 + Y_2) & = E\left[ (Y_1 + Y_2)^2 \right] - E\left[ Y_1 + Y_2 \right]^2 \\
+& = E[Y_1^2] + 2E[Y_1 Y_2] + E[Y_2^2] - \left( E[Y_1]^2 + 2E[Y_1]E[Y_2] + E[Y_2]^2 \right) \\ 
+& = \underbrace{E[Y_1^2] - E[Y_1]^2}_{=V(Y_1)} + 2 \underbrace{E[Y_1 Y_2] - E[Y_1]E[Y_2]}_{=Cov(Y_1, Y_2)} + \underbrace{E[Y_2^2] - E[Y_2]^2}_{=V(Y_2)} \\
+& = V(Y_1) + 2Cov(Y_1, Y_2) + V(Y_2) 
+\end{align}$$
+
+--
+
+In particular, if $Y_1 \perp Y_2$, then $V(Y_1 + Y_2) = V(Y_1) + V(Y_2)$. 
+
+---
+## Sum of independent random variables
+
+If $Y_1, \dots, Y_n$ are .blue[i.i.d.], the .blue[sum] $S_n = Y_1 + \dots + Y_n$ has very simple mean and variance:
+
+--
+
+.blue[Mean]
+
+$$
+E[S_n] = E[Y_1 + \dots + Y_n] = E[Y_1] + \dots + E[Y_n] = nE[Y_1]
+$$
+
+--
+
+.remark[Remark:] The first equality is .alert[always] true and the second requires identical means.
+
+--
+
+.blue[Variance]
+
+$$
+V(S_n) = V[Y_1 + \dots + Y_n] = V[Y_1] + \dots + V[Y_n] = nV[Y_1]
+$$
+--
+
+.remark[Remark:] The equality requires .blue[independence] and the second requires identical variances.
+
+---
+## Application to the Binomial distribution 
+
+Remember that a binomial variable $Y \sim \mathcal{B}(K, p)$ is the sum of $K$ independent Bernoulli trials:
+
+$$
+X = Y_1 + \dots + Y_K \quad \text{where the } Y_i \text{ are i.i.d. with } Y_i \sim \mathcal{B}(p)
+$$
+
+Using the previous results, it results that 
+
+$$\begin{align}
+E[X] & = K E[Y_1] = Kp \\
+V[X] & = K V[Y_1] = Kp(1 -p)
+\end{align}$$
+---
+## Application to the Poisson distribution 
+
+We mentioned before that, if $X \sim \P(\lambda)$, then $V[X] = \lambda$. Remember that $E[X] = \lambda$. 
+
+
+$$\begin{align}
+V(X) & = E[X^2] - E[X]^2 \\
+     &= E[X(X-1) + E[X] - E[X]^2 \\
+     & = E[X(X-1)] + E[X] - E[X]^2 \\
+     & = \lambda^2 + \lambda - \lambda^2 \\
+     & = \lambda
+\end{align}$$
+
+
+---
+class: middle, inverse, center
+
+# A first try at estimation
+
+## Finite population
+
+---
+### The Circle dataset
+
+.pull-left[
+
+- Population of $n = 100$ circles
+
+- Indexed by $i = 1, \dots, n$
+
+- Each characterized by its diameter $D_i$
+
+]
+
+.pull-right[
+```{r circles, fig.height=6, fig.width=6, fig.align='center'}
+FactorDiam <- 25
+FactorX <- 10
+
+## Load the data
+DF <- readRDS("data/DonneesCercles.rds")
+N <- nrow(DF)
+TrueMean <- mean(DF$Size)
+
+## GGplot
+ggplot(DF,aes(x=X,y=Y)) +
+  geom_point(size=DF$Size, shape = 21, colour = "black") +
+  geom_text(aes(x=X,y=Y-0.3-Size/3,label = 1:100,size=2,fontface="bold")) +
+  xlab('') + ylab('') +
+  theme_void() + 
+  theme(legend.position = "none")
+```
+]
+
+
+---
+## List of diameters
+
+```{r, echo=FALSE,comment=NA}
+DF |> 
+  mutate(ID = 1:n()) |> 
+  select(ID, Size) |> 
+  DT::datatable(filter = "none", list(dom = "tp"), rownames = FALSE) |> 
+  DT::formatRound(columns = "Size", digits = 2)
+```
+
+.blue[Goal]: Provide an **estimate** of the mean circle diameter $E[D]=\mu_D$.
+
+---
+
+## Obtaining an estimate
+
+Requires three steps:
+
+.pull-left[
+
+- .blue[Step 1] Collect some data, i.e. a **sample**
+
+- .blue[Step 2] Apply some **estimator** to the sample
+
+- .blue[Step 3] Get the estimate:
+]
+
+--
+
+.pull-right[
+
+- $D_1,...,D_n$ collected *at random*
+
+- $\overline{D}= \frac{1}{n} \sum_{i=1}^{n}D_i$
+
+- $\widehat{\mu}_D= \frac{1}{n} \sum_{i=1}^{n}d_i$
+]
+
+--
+
+.remark[The estimator is a random variable, the estimate is a numeric value]
+
+---
+
+## Remarks and questions
+
+.blue[One remark...]
+
+- .alert[ALWAYS] distinguish between the true expectation $\mu_D$ and its estimate $\widehat{\mu}_D$.
+
+.blue[... and three questions]
+
+- Any (implicit) **assumption** about the way data were **collected** ?
+
+- We defined an intuitive estimator: is it a good one ? How can we **assess** its **performance** ?
+
+- If intuition fails to provide an estimator (or a good one), can we think of a **systematic strategy** to obtain a *good* estimator ?
+
+---
+
+## Several ways to "sample at random"
+
+In the Circle example, one can
+
+- Select the circles "by eye",
+
+- Use the droppin' pen technics,
+
+- Select identifiers at random,
+
+- Any other meaningful strategy 
+
+.def[Definition] A **S**imple **R**andom **S**ampling is such that all samples of size $n$ have the same probability ${n \choose N}^{-1}$ to be drawn.
+
+--
+
+.def[Property]: In a SRS, each individual has the same probability $n/N$ to be selected.
+
+---
+## Applying SRS to the Circle dataset
+
+Here are the estimates obtained from 32 SRS trials, with $n=10$:
+
+$$\displaystyle{\frac{1}{10}\sum_{i=1}^{10}d_i}=$$
+
+```{r,comment='   '}
+set.seed(42)
+NbTrial <- 32
+Trials <- purrr::map_chr(1:NbTrial, ~ mean(sample(DF$Size,10)) |> formatC(width = 5, format = "f"))
+tibble(line = gl(8, 4) %>% head(32), text = paste0("Estimate ", formatC(1:NbTrial, width = 2, flag = "0"), ": ", Trials)) %>% 
+  group_by(line) %>% summarise(text = paste(text, collapse = "\t")) %>% 
+  pull(text) %>% 
+  cat(sep = "\n")
+```
+
+--
+
+.blue[*True mean:* `r round(TrueMean,3)`]
+
+--
+
+.remark[Remark:] One cannot evaluate the performance of an estimator through an estimate since the estimate depends both on the estimator **and** the sample.
+
+.center[
+Performance has to be evaluated **on average** over **all** possible samples
+]
+
+---
+## Performance evaluation
+
+Estimator $\overline{D}$ is a random variable (which depends on the sample).
+
+
+One can define:
+- the bias $B(\overline{D}) = E[\overline{D}]-\mu_D$
+- the variance $V(\overline{D})$.
+
+.blue[Mean Square Error]
+
+One defines $$MSE(\overline{D}) = E[(\overline{D}-\mu_D)^2].$$ 
+
+.remark[Remark] How is $MSE(\overline{D})$ related to bias and variance ? 
+
+--
+
+$$MSE(\overline{D}) = B^2(\overline{D}) + V(\overline{D})$$
+--
+
+.blue[Why is all of this useful at all ?] .question[quizz2]
+
+---
+class: middle, inverse, center
+
+# SRS in finite population 
+
+---
+## General framework
+
+Consider a population $\mathcal{P}$ of size $N$ and note $y_i$ the value of variable $Y$ measured on individual $i$.
+
+Define
+
+$$\begin{eqnarray*}
+E[Y] &=& \frac{1}{N}\sum_{i=1}^{N}y_i  =\mu\\
+\text{and } V[Y] &=& \frac{1}{N}\sum_{i=1}^{N}(y_i-\mu)^2 = \sigma^2
+\end{eqnarray*}$$
+
+--
+
+Assume $\mu$ is estimated by applying the empirical mean to sample $S$:
+$$\begin{equation}
+\overline{Y} = \frac{1}{n}\sum_{i\in S}Y_i = \frac{1}{n}\sum_{i=1}^{N}\varepsilon_i y_i
+ \quad \text{where} \quad \varepsilon_i = \begin{cases}
+1 & \text{if } i\in S \\
+0 & \text{otherwise}
+\end{cases}
+\end{equation}$$
+
+--
+.remark[Remark] $n$ (sample) is generally much smaller than $N$ (population) !!
+
+---
+## Theoretical properties of $\overline{Y}$
+
+```{r}
+Sigma2D = round(((N-1)/N)*var(DF$Size),3)
+VarYbar = round((1/10)*(100/99)*(1-10/100)*Sigma2D,3)
+```
+
+Consider a SRS, i.e. $P(S)={n \choose N}^{-1}$, then
+
+$$\begin{eqnarray*}
+E[\overline{Y}] &=& \mu \\
+V[\overline{Y}] &=& \frac{1}{n}\left(1-\frac{n}{N}\right)\frac{N}{N-1}\sigma^2 =\frac{1}{n}\left(1-\frac{n}{N}\right)(\sigma^*)^2
+\end{eqnarray*}$$
+
+where $(\sigma^*)^2= \frac{N}{N-1}\sigma^2$ is the corrected population variance (more on that later) .question[quizz3]
+
+.blue[Proof:] Next slide
+
+--
+
+Application to the circle dataset:
+$N=100$, $n=10$, $\sigma^2$=`r Sigma2D`
+
+$\Rightarrow V[\overline{Y}] =\frac{1}{10}\times\frac{100}{99}\times\left(1-\frac{10}{100}\right)\times$ `r Sigma2D` = `r VarYbar`
+
+---
+## Proof
+
+---
+## Stratified sampling
+
+Assume that population $\mathcal{P}$ has $H$ strata $\mathcal{P}_1,...,\mathcal{P}_H$.
+
+.pull-left[
+
+Define
+
+- $N_h$: size of stratum $\mathcal{P}_h$, $h=1,...,H$,
+
+- $N=\sum_h N_h$: population size,
+
+- $\mu_h=\frac{1}{N_h}\sum_{i\in\mathcal{P}_h}y_i$: mean of stratum $h$,
+
+- $\sigma_h^*=\frac{1}{N_h-1}\sum_{i\in\mathcal{P}_h}(y_i-\mu_h)^2$: corrected variance of stratum $h$.
+]
+
+--
+
+.pull-right[
+
+.blue[Stratified sampling]
+
+Perform .alert[one SRS per stratum] where
+
+- $n_h$: number of sampled individuals per stratum,
+
+- $n=\sum_h n_h$: total sample size,
+
+- $\overline{Y}_h=\frac{1}{n_h}\sum_{i\in\mathcal{P}_h}Y_i$: empirical mean of stratum $h$.
+]
+
+--
+
+One then estimates the population mean $\mu$ using
+$$\overline{Y}_{St} = \sum_{h=1}^{H}\frac{N_h}{N}\overline{Y}_h$$
+
+---
+## Properties of stratified sampling
+
+Consider a stratified sampling strategy. Then
+
+$$\begin{eqnarray*}
+E[\overline{Y}_{St}] &=& \mu \\
+V[\overline{Y}_{St}] &=&
+\sum_{h=1}^H \left(\frac{N_h}{N}\right)^2\times \frac{1}{n_h}\left(1-\frac{n_h}{N_h}\right) \times (\sigma_h^*)^2 \\
+V[\overline{Y}_{St}] &\leq& V[\overline{Y}]
+\end{eqnarray*}$$
+
+.blue[Proof]: based on the properties of SRS (equalities) and on the decomposition of the population variance + assuming $\frac{N_h-1}{N_h}\approx1$ (inequality).
+
+---
+## Proof
+
+---
+class: middle, inverse, center
+
+# IID sampling in infinite populations
+
+---
+## Sampling in an infinite population
+
+Consider a population $\mathcal{P}$ where variable $Y$ has distribution $\mathcal{L}$.
+Define
+$$E[Y] = \mu, \quad V[Y] =\sigma^2 $$
+
+
+Assume $\mu$ is estimated by applying the empirical mean to sample $Y_1,...,Y_n$, where
+$$Y_i \sim \mathcal{L}, \text{ i.i.d.}$$
+Then
+$$E\left[\overline{Y}\right] = \mu,\quad V\left[\overline{Y}\right] = \frac{\sigma^2}{n} $$
+
+.question[quizz4]
+
+.blue[Proof:] Your turn! 
+
+---
+class: middle, center, inverse
+
+# Exercises
+
+---
+## Exercise 1: Bulb lifetime
+
+```{r}
+Lambda <- 540
+NbBulbs <- 12
+LT <- rpois(NbBulbs,lambda = Lambda)
+LambdaHat = round(mean(LT),3)
+Prob90 <- round(ppois(q = 500,lambda = LambdaHat,lower.tail = FALSE),3)
+```
+
+A bulb manufacturer claims that 90% of the produced bulbs have a lifetime of 500 hours or higher. An investigator bought `r NbBulbs` bulbs and obtained the following lifetimes:
+```{r,comment=NA}
+cat(LT)
+```
+
+Assuming bulb lifetimes have a Poisson distribution: 
+
+- What is the average lifetime of the produced bulbs?
+- Is the manufacturer honest ?
+
+--
+
+.blue[Answers]
+
+$\widehat{E[L]} =\widehat{\lambda}=$ `r LambdaHat`,
+
+$\quad \widehat{P}_{\widehat{\lambda}}(L\geq 500)=$ `r Prob90`
+
+---
+## Exercise 2: Exponential distribution
+
+A a positive real valued random variable $X$ has a exponential distribution $\mathcal{E}(\lambda)$ with parameter $\lambda$, noted $X\sim\mathcal{E}(\lambda)$, if 
+
+$$f_X(x) = \lambda e^{-\lambda x}, \ x\geq0, \ \lambda\geq0. $$
+
+- Check that $\int_0^\infty f(t)dt = 1$ (i.e. $f$ is a density function).
+
+- Compute $E[X]$, where $X\sim\mathcal{E}(\lambda)$.
+
+- Assuming $X_1,...X_n\sim\mathcal{E}(\lambda)$ i.i.d., suggest an estimator for $\lambda$.
+
+---
+## Summary
+
+.blue[3 quantities to distinguish]
+
+- $\mu=E[X]$: .alert[true] population mean.
+- $\overline{Y}=\frac{1}{n}\sum_{i=1}^nY_i$: estimator.
+- $\widehat{\mu}=\frac{1}{n}\sum_{i=1}^ny_i$: estimate.
+
+Remember that estimator $\neq$ estimate
+
+--
+
+.blue[Sampling]
+
+- In the following, we will always assume either SRS (finite pop.) or i.i.d. sampling (infinite pop.).
+
+--
+
+.blue[Performance]
+
+- Different estimators can be compared through their MSE.
+- Keep in mind that $MSE(T) = B^2(T) + V(T)$
+
+--
+
+.blue[What's next ?]
+
+- What if intuition fails to provide an estimator (or a good one)?
+- $\Rightarrow$ Need for a *systematic strategy* to obtain a .alert[satisfactory] estimator!

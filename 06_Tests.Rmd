@@ -1,0 +1,268 @@
+---
+title: "Tests"
+author: "Mahendra Mariadassou, INRAE <br> .small[from original slides by Tristan Mary-Huard]"
+date: "Shandong University, Weihai (CN)<br>Summer School 2023"
+output:
+  xaringan::moon_reader:
+    chakra: libs/remark-latest.min.js
+    css: ["css/custom_weihai_ss.css", default]
+    lib_dir: libs
+    nature:
+      ratio: '16:9'
+      slideNumberFormat: '%current%'
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+    includes:
+      before_body: macros.html
+height: 1080
+width: 1920
+---
+
+```{r setup, include=FALSE,}
+knitr::opts_chunk$set(echo = FALSE,comment=NA,message=FALSE,warning = FALSE)
+library(ggplot2)
+library('gridExtra')
+library(dplyr)
+DisplayVect <- function(v,NbItemPerLine=6,Max=30,Round=3){
+  lv <- length(v)
+  Max <- min(lv, Max)
+  v <- v[1:Max]
+  for (ii in 1:(lv%/%NbItemPerLine)){
+    cat(round(v[((ii-1)*NbItemPerLine+1):(ii*NbItemPerLine)],Round),'\n')
+  }
+  if (lv%%NbItemPerLine !=0){
+    cat(round(v[(lv- lv%%NbItemPerLine + 1):lv],Round),'\n')
+  }
+}
+```
+
+```{r xaringan-scribble, echo=FALSE}
+xaringanExtra::use_scribble()
+```
+
+---
+class: middle, inverse, center
+
+# Warm-up
+
+## Introducing the Fisher distribution 
+
+---
+
+## Prerequesites: Fisher distribution
+
+Let $Z_1$ and $Z_2$ be two positive random variables such that  
+
+- $Z_1\sim\chi^2(n_1)$,  
+- $Z_2\sim\chi^2(n_2)$,  
+- $Z_1\perp Z_2$.  
+
+
+Define
+$$F = \frac{Z_1/n_1}{Z_2/n_2}$$
+--
+
+Then $F$ is said to follow a Fisher distribution with degrees of freedom $n_1$ and $n_2$.
+
+One notes
+$$F \sim \F(n_1,n_2)$$
+---
+  
+## Example 1: Infection
+  
+```{r}
+## Parameters
+Alpha2 <- 0.05
+
+## Read data
+NbPhages <- c(2,2,2,2,3,3,2,4,1,1,5,1,3,1,1,5,1,1,4,2)
+NbBactos <- length(NbPhages)
+S = sum(NbPhages)
+M = mean(NbPhages)
+Lambda0 <- round(-log(0.1),4)
+
+## Find the confidence interval using normal approx + plug-in
+LambdaHat= M
+quant.pois <- qpois(p = 1-Alpha2,lambda = NbBactos*Lambda0)
+ccl <- 'rejects'
+if (LambdaHat <= quant.pois/NbBactos){ ccl='does not reject' }
+```
+
+Back to the phage infection example. Assume now that if at least 90% of the bacteria colony is infected then the biologist applies a treatment to fight the infection. What decision rule should be applied ?
+
+```{r}
+DisplayVect(v = NbPhages,NbItemPerLine = 10,Round = 0)
+```
+  
+.blue[Objective]
+Perform a test to decide whether the proportion of infected bacteria is higher than $90\%$ or not.  
+  
+---
+  
+## Modeling
+  
+Denote $X_i$ the number of phages obtained for the $i^{th}$ bacterium.  
+
+- One assumes that bacteria are independent:  
+$X_1 \perp X_2 \perp \dots \perp X_{n},\quad\text{with } n= `r NbBactos`$ 
+- Measurements are discrete
+$X_1,..., X_{n}  \sim \mathcal{P}(\bullet), \text{ i.i.d}$
+- The infection level is unknown
+$X_1,..., X_{n} \sim \mathcal{P}(\lambda), \text{ i.i.d}$
+
+
+---
+
+## Hypotheses
+
+Hypotheses *must* be formulated such that they *concern a parameter* of the model.  
+Here the model is 
+
+$$X_1,..., X_{n} \sim \mathcal{P}(\lambda), \text{ i.i.d}$$ 
+
+Consequently the hypotheses should concern $\lambda$.
+
+--
+
+$$\begin{eqnarray*}
+\hspace{-0.8cm}\text{Proportion of infected bacteria } \geq \text{90\%} &\Rightarrow& P(X>0)\geq 0.9 \\
+&\Rightarrow& P(X=0)\leq 0.1 \\
+&\Rightarrow& e^{-\lambda}\leq 0.1 \\
+&\Rightarrow& \lambda\geq -\ln(0.1)  \\
+&\Rightarrow& \lambda\geq \lambda_0 (=`r Lambda0`) \\
+\end{eqnarray*}$$
+
+-- 
+
+Hence
+$$H_0: \{\lambda\leq \lambda_0\} \quad \text{vs} \quad H_1: \{\lambda\geq \lambda_0\}$$
+
+---
+  
+## Estimation
+  
+Starting point: derive the ML estimator for the quantity of interest.  
+
+$$\begin{eqnarray*}
+  Lik_\lambda(x_1,...,x_n) &=& \prod_{i=1}^n f_\lambda(x_i) \quad\text{(i.i.d. assumption)}\\
+  &=& \prod_{i=1}^n \frac{\lambda^{x_i}}{x_i!}e^{-\lambda} \\
+  \Rightarrow LLik_\lambda(x_1,...,x_n) &=& \log(\lambda)\sum_{i=1}^{n}x_i - \sum_{i=1}^{n}\log(x_i!) - n\lambda 
+\end{eqnarray*}$$
+
+.blue[Derivation]
+$$\frac{\partial LLik_\lambda(x_1,...,x_n)}{\partial \lambda}=  \frac{1}{\lambda}\sum_{i=1}^n x_i -n$$
+Setting the derivative at 0, one gets: $\widehat{\lambda} = \frac{1}{n}\sum_{i=1}^n x_i=\bar{x}$. 
+  
+  
+---
+
+## Decision rule
+
+Should be of the form
+$$\text{If } \hat{\lambda}\geq s \text{ then reject } H_0$$
+One needs to choose threshold $s$.  
+
+
+.blue[Type I error control]  
+Find $s$ such that $P_{H_0}(\overline{X}\geq s)\leq \alpha$  
+$\Rightarrow$ Requires the (possibly approximate) distribution of $\overline{X}$.  
+
+One has:
+$$\begin{eqnarray*}
+n\overline{X} \sim \P(n\lambda) \quad \text{ and/or } \quad  \sqrt{n}\frac{\overline{X}-\lambda}{\lambda} \overset{approx}{\sim} \N(0,1)
+\end{eqnarray*}$$
+
+.blue[Under $H_0$]:  
+One has $\lambda \in [0,\lambda_0]$, still the $H_0$ distribution of $\overline{X}$ is not fully known...
+
+
+---
+
+## Worst case scenario
+
+Which value of $\lambda \in [0,\lambda_0]$ leads to the worst (i.e. the max) value of $P_{H_0}(\overline{X}\geq s)$ ?  
+
+
+```{r,fig.height=6}
+## Parameters
+MinLambda = 1
+MaxLambda = - log(0.1)
+NbVal = 3
+MaxX <- 15
+
+## Theme
+Coef=1.2  
+THFtn <- function(Coef){
+  theme(axis.text=element_text(size=10*Coef),
+      axis.title=element_text(size=15*Coef),
+      plot.title=element_text(size=15*Coef),
+      strip.text.x = element_text(size = 20*Coef),
+      legend.text=element_text(size=12*Coef),
+      legend.title = element_text(size=15*Coef))
+} 
+TH <- THFtn(Coef)
+  
+## Plot the risk
+LambdaSet <- round(seq(MinLambda,MaxLambda,length.out = NbVal),4) %>% rep(.,each=MaxX+1)
+Runs <- rep(0:MaxX,times=3)
+Probs <- dpois(Runs,lambda = LambdaSet)
+DF <- data.frame(LambdaSet,Runs,Probs,Lambda=as.character(LambdaSet)) 
+ggplot(DF,aes(x=Runs,y=Probs,col=Lambda)) +
+  geom_line(size=2) + 
+  ylab('Prob(X=x)') + xlab('x') + ggtitle('Poisson distribution with different lambdas') +
+  geom_vline(xintercept = 4.5,size=2) + TH
+```
+
+--
+
+Worst value: $\lambda =\lambda_0$ !
+
+---
+
+## Back to the decision rule
+
+```{r, echo = FALSE, eval = FALSE}
+GG <- ggplot(data.frame(x = c(0, 15)), aes(x)) +
+  stat_function(fun = dpois,args = list(lambda=Lambda0),size=2) +
+  stat_function(fun = dpois,args = list(lambda=Lambda0),
+                xlim = c(quant.pois,15),
+                geom = "area",fill=2) +
+  ylab('Value') + xlab('Density') + ggtitle(paste('Poisson(lambda0) distribution')) +
+  TH
+```
+
+
+Considering the worst case scenario,
+one looks for $s$ such that
+$$P_{\lambda_0}\left( \overline{X}\geq s \right)\leq \alpha \Rightarrow P_{\lambda_0} \left( n\overline{X}\geq ns \right)\leq \alpha$$
+Choose $ns = q_{n\lambda_0,1-\alpha} \Rightarrow s = \frac{q_{n\lambda_0,1-\alpha}}{n}$,
+
+.blue[Application]
+- $\widehat{\lambda}=$   `r LambdaHat`
+- $n=$ `r NbBactos`
+- $\alpha= 0.05$
+- $q_{n\lambda_0,1-\alpha}=$ `r quant.pois` $\Rightarrow s=$ `r quant.pois/NbBactos`
+--
+
+.blue[Conclusion ?]
+
+One `r ccl` the hypothesis that the proportion of infected bacteria is lower than 90\%
+
+
+---
+
+## Power of a test procedure
+
+Recall that the test procedure is design such that:
+
+- T1E is controlled at a given level,
+- T2E is minimum given T1E is controlled.
+
+
+T2E is minimum $\Rightarrow$ $P_{H_1}( \text{accept } H_0)$ is minimum $\Rightarrow$ $P_{H_1}(\text{reject} H_0)$ is maximum. 
+
+
+$P_{H_1}(\text{reject } H_0)$ is the ability to reject $H_0$ when it false.
+This key quantity is called the __power__ of the test procedure.
+
