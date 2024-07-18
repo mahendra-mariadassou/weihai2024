@@ -980,7 +980,7 @@ $x=3$ means that the deviance is exactly 3.0000000... cm.
 
 Let $n_x$ be the number of trials that deviated from target with deviance $x$ in a sample of $n$ trials. One has:
 $$
-P(X = x) = \underset{n\rightarrow\infty}{\lim}\frac{n_{x}}{n} = 0 \text{!!!}
+P(X = x) = \underset{n\rightarrow\infty}{\lim}\frac{n_{x}}{n} = 0 \text{    !!!}
 $$
 
 .alert[But]
