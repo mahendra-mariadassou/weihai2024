@@ -137,6 +137,7 @@ $$\widehat{\theta} = \arg\max_{\theta} Lik_{\theta}(x_1,...,x_n)$$
 $$P\left(T= \theta\right) = 0$$
 
 ---
+
 ## Confidence interval
 
 Instead of providing a single value, provide a **range** of values such that
@@ -146,6 +147,29 @@ where
 
 - $L$ and $U$ can be computed from the data,
 - the **confidence level** $\alpha$ is **chosen** by the user.
+
+**Note:** $L$ and $U$ are .blue[random values] depending on $X_1, \dots, X_n$.
+
+---
+
+## Definition
+
+**Random interval** 
+
+Let $L = m(X_1, ..., X_n)$ et  $U = M(X_1, ..., X_n)$ two r.v. We define a .blue[random interval] $[L, U]$ for $\theta$ with the couple $(L, U)$ and call $P(L < \theta < U)$ the .blue[level of confidence].
+
+--
+
+**Confidence interval**
+
+A .blue[confidence interval] at level $1-\alpha$ for $\theta$ is a realisation $[l, u]$ of a random interval with confidence level $1-\alpha$
+
+--
+
+**Notes:** 
+
+- In general, we want the interval to be as .blue[narrow] as possible. 
+- $\theta$ is a fixed value and $[L, U]$ is random. For any realisation $[l, u]$ of $[L, U]$, $\theta$ is .blue[either] in the interval or not. 
 
 ---
 ## Pivotal statistic
@@ -173,12 +197,126 @@ If the .blue[distribution] of $T_{pv}$ is known and does not depend on $\theta$ 
 ---
 class: middle, inverse, center
 
-# Example 1
+# Example 0
 
-## Weighing scale precision
+## Mean of a gaussian with unit variance
 
 ---
-## Example 1: Weighing scale precision
+## Mean of a gaussian with unit variance
+- **Model** 
+$X_1, ..., X_n$ gaussian with parameter $\mu$ (unknown) and $\sigma^2 = 1$ (known)
+
+- **Estimator** 
+$$\bar{X} = \sum X_i /n$$
+
+- We assume for simplicity that $V(X_i) = \sigma^2 = 1$ is known
+
+- Model for the estimator [using properties of gaussian / Central Limit Theorem]
+
+$$
+\bar{X} \sim \mathcal{N}(\mu, 1/n)
+$$
+
+Or equivalently
+
+$$
+Z = \frac{\bar{X} - \mu}{\sigma/\sqrt{n}} \sim\mathcal{N}(0, 1)
+$$
+--
+We can use .blue[quantiles] of the standard gaussian to find bounds. 
+
+---
+## Confidence Interval
+
+.pull-left[
+With probability 0.95
+
+$$
+\begin{equation}
+q_{0.025} \leq \frac{\bar{Y} - \mu}{\sigma/\sqrt{n}} \leq q_{0.975}
+\end{equation}
+$$
+Or with a bit of manipulation
+
+$$
+\begin{align}
+\mu & \in \left[ \bar{Y} - q_{0.975}\frac{\sigma}{\sqrt{n}}, \bar{Y} - q_{0.025}\frac{\sigma}{\sqrt{n}} \right] \\
+\mu & \in \bar{Y} \pm 1.96 \frac{\sigma}{\sqrt{n}}
+\end{align}
+$$
+]
+
+.pull-right[
+```{r, echo=F, fig.width=4, fig.height=4, out.width="500px", dpi = 150}
+plot_norm_interval <- function(beta, alpha = 0.05) {
+  a <- qnorm(beta, mean = 0, sd = 1) ## q_beta
+  b <- qnorm(1 - alpha + beta, mean = 0, sd = 1) ## q_{1 - alpha + beta}
+  x <- c(a, b, seq(min(-5, a), max(5, b), length.out = 101)) %>% unique() %>% sort()
+  df <- tibble(x = x, 
+               d = dnorm(x), 
+               side = case_when(
+                 x <= a ~ "left", 
+                 x >= b ~ "right",
+                 TRUE   ~ "center"))
+  ggplot(df, aes(x = x, y = d)) + 
+    geom_area(aes(y = d, fill = side)) + 
+    scale_fill_manual(values = c(left = "red", center = "transparent", right = "darkred"), guide = "none") + 
+    annotate(x = a, y = dnorm(a), hjust = 0.75, vjust = 0, geom = 'text', label = "beta", parse = TRUE, color = "red") + 
+    annotate(x = b, y = dnorm(b), hjust = 0.25, vjust = 0, geom = 'text', label = "1 - alpha + beta", parse = TRUE, color = "darkred") + 
+    geom_segment(aes(x = a, xend = b, y = 0, yend = 0), color = "darkgreen") + 
+    annotate(x = (a+b)/2, y = 0, hjust = 0.5, vjust = 0, geom = 'text', label = 'group("[",list(q[beta], q[1-alpha+beta]),"]")', parse = TRUE, color = "darkgreen") +
+    annotate(x = -Inf, y = Inf, geom = "text", hjust = 0, vjust = 1,
+             label = paste0("q[1-alpha+beta] - q[beta] ==", round(b-a, digits = 3)), parse = TRUE) + 
+    geom_line()
+}
+plot_norm_interval(0.025, 0.05) + theme_bw()
+```
+]
+
+---
+## A cautionary tale
+
+- .blue[On average] 95% of the intervals contain the true value. 
+- But for a .blue[single] interval, the true value is .blue[either] in the interval or not in the interval
+
+```{r, echo = FALSE, out.width = "1000px", fig.width=12, fig.height=5, dpi = 150}
+set.seed(42)
+can_container <- rnorm(1e6, mean = 330, sd = 15)
+set.seed(1)
+plot_ci <- function(n_estimates = 100, sample_size = 500, alpha = 0.05) {
+  t_alpha <- qt(1 - alpha/2, df = sample_size - 1)
+  tibble(estimate_nb = 1:n_estimates) %>% 
+    mutate(sample    = purrr::map(estimate_nb, ~ sample(can_container, sample_size)), 
+           mu_hat    = purrr::map_dbl(sample, mean), 
+           sigma_hat = purrr::map_dbl(sample, sd), 
+           ymin      = mu_hat - t_alpha * sigma_hat / sqrt(sample_size), 
+           ymax      = mu_hat + t_alpha * sigma_hat / sqrt(sample_size), 
+           covers    = if_else(ymin <= 330 & ymax >= 330, TRUE, FALSE)) %>% 
+    select(-sample) %>% 
+    ggplot(aes(x = estimate_nb, y = mu_hat, 
+               ymin = ymin, ymax = ymax, color = covers)) + 
+    geom_point() + 
+    geom_linerange() +
+    geom_hline(yintercept = 330, color = "darkred") + 
+    scale_color_manual(values = c("TRUE" = "black", "FALSE" = "red"), name = expression(CI(1-alpha)~covers~mu)) + 
+    labs(x = "Repetition", 
+         y = expression(hat(mu)%+-%frac(hat(sigma), sqrt(n))*t[list(n-1,1-alpha/2)])) +
+    theme(legend.background = element_rect(fill = "transparent"), 
+          legend.position = "right") + 
+    ggtitle(bquote(.(n_estimates) ~ "CI at level 1-" ~ alpha== .(1-alpha) ~ "for" ~ .(n_estimates) ~ "samples of size" ~ .(sample_size)))
+}
+plot_ci()
+```
+
+---
+class: middle, inverse, center
+
+# Example 1
+
+## Weighting scale precision
+
+---
+## Example 1: Weighting scale precision
 
 ```{r}
 NbWeights <- 15
@@ -188,7 +326,7 @@ Alpha = 0.05
 ```
 
 
-A biologist needs a new weighing machine.
+A biologist needs a new weighting machine.
 
 --
 
