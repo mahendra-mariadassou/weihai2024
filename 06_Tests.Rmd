@@ -1,7 +1,7 @@
 ---
 title: "Tests"
 author: "Mahendra Mariadassou, INRAE <br> .small[from original slides by Tristan Mary-Huard]"
-date: "Shandong University, Weihai (CN)<br>Summer School 2023"
+date: "Shandong University, Weihai (CN)<br>Summer School 2024"
 output:
   xaringan::moon_reader:
     chakra: libs/remark-latest.min.js
@@ -42,227 +42,265 @@ xaringanExtra::use_scribble()
 ```
 
 ---
-class: middle, inverse, center
 
-# Warm-up
+## Main Idea
 
-## Introducing the Fisher distribution 
+Some research directions can be formulated as .blue[questions] with a yes / no answer: 
 
----
-
-## Prerequesites: Fisher distribution
-
-Let $Z_1$ and $Z_2$ be two positive random variables such that  
-
-- $Z_1\sim\chi^2(n_1)$,  
-- $Z_2\sim\chi^2(n_2)$,  
-- $Z_1\perp Z_2$.  
-
-
-Define
-$$F = \frac{Z_1/n_1}{Z_2/n_2}$$
---
-
-Then $F$ is said to follow a Fisher distribution with degrees of freedom $n_1$ and $n_2$.
-
-One notes
-$$F \sim \F(n_1,n_2)$$
----
-  
-## Example 1: Infection
-  
-```{r}
-## Parameters
-Alpha2 <- 0.05
-
-## Read data
-NbPhages <- c(2,2,2,2,3,3,2,4,1,1,5,1,3,1,1,5,1,1,4,2)
-NbBactos <- length(NbPhages)
-S = sum(NbPhages)
-M = mean(NbPhages)
-Lambda0 <- round(-log(0.1),4)
-
-## Find the confidence interval using normal approx + plug-in
-LambdaHat= M
-quant.pois <- qpois(p = 1-Alpha2,lambda = NbBactos*Lambda0)
-ccl <- 'rejects'
-if (LambdaHat <= quant.pois/NbBactos){ ccl='does not reject' }
-```
-
-Back to the phage infection example. Assume now that if at least 90% of the bacteria colony is infected then the biologist applies a treatment to fight the infection. What decision rule should be applied ?
-
-```{r}
-DisplayVect(v = NbPhages,NbItemPerLine = 10,Round = 0)
-```
-  
-.blue[Objective]
-Perform a test to decide whether the proportion of infected bacteria is higher than $90\%$ or not.  
-  
----
-  
-## Modeling
-  
-Denote $X_i$ the number of phages obtained for the $i^{th}$ bacterium.  
-
-- One assumes that bacteria are independent:  
-$X_1 \perp X_2 \perp \dots \perp X_{n},\quad\text{with } n= `r NbBactos`$ 
-- Measurements are discrete
-$X_1,..., X_{n}  \sim \mathcal{P}(\bullet), \text{ i.i.d}$
-- The infection level is unknown
-$X_1,..., X_{n} \sim \mathcal{P}(\lambda), \text{ i.i.d}$
-
-
----
-
-## Hypotheses
-
-Hypotheses *must* be formulated such that they *concern a parameter* of the model.  
-Here the model is 
-
-$$X_1,..., X_{n} \sim \mathcal{P}(\lambda), \text{ i.i.d}$$ 
-
-Consequently the hypotheses should concern $\lambda$.
+- Is the expression of gene HER2 large in breast cancer ?
+- Is a new variety of tomato more resistant to mildew than the previous one ?
+- Is food cheaper in China than in France ?
 
 --
 
-$$\begin{eqnarray*}
-\hspace{-0.8cm}\text{Proportion of infected bacteria } \geq \text{90\%} &\Rightarrow& P(X>0)\geq 0.9 \\
-&\Rightarrow& P(X=0)\leq 0.1 \\
-&\Rightarrow& e^{-\lambda}\leq 0.1 \\
-&\Rightarrow& \lambda\geq -\ln(0.1)  \\
-&\Rightarrow& \lambda\geq \lambda_0 (=`r Lambda0`) \\
-\end{eqnarray*}$$
-
--- 
-
-Hence
-$$H_0: \{\lambda\leq \lambda_0\} \quad \text{vs} \quad H_1: \{\lambda\geq \lambda_0\}$$
-
----
-  
-## Estimation
-  
-Starting point: derive the ML estimator for the quantity of interest.  
-
-$$\begin{eqnarray*}
-  Lik_\lambda(x_1,...,x_n) &=& \prod_{i=1}^n f_\lambda(x_i) \quad\text{(i.i.d. assumption)}\\
-  &=& \prod_{i=1}^n \frac{\lambda^{x_i}}{x_i!}e^{-\lambda} \\
-  \Rightarrow LLik_\lambda(x_1,...,x_n) &=& \log(\lambda)\sum_{i=1}^{n}x_i - \sum_{i=1}^{n}\log(x_i!) - n\lambda 
-\end{eqnarray*}$$
-
-.blue[Derivation]
-$$\frac{\partial LLik_\lambda(x_1,...,x_n)}{\partial \lambda}=  \frac{1}{\lambda}\sum_{i=1}^n x_i -n$$
-Setting the derivative at 0, one gets: $\widehat{\lambda} = \frac{1}{n}\sum_{i=1}^n x_i=\bar{x}$. 
-  
-  
----
-
-## Decision rule
-
-Should be of the form
-$$\text{If } \hat{\lambda}\geq s \text{ then reject } H_0$$
-One needs to choose threshold $s$.  
-
-
-.blue[Type I error control]  
-Find $s$ such that $P_{H_0}(\overline{X}\geq s)\leq \alpha$  
-$\Rightarrow$ Requires the (possibly approximate) distribution of $\overline{X}$.  
-
-One has:
-$$\begin{eqnarray*}
-n\overline{X} \sim \P(n\lambda) \quad \text{ and/or } \quad  \sqrt{n}\frac{\overline{X}-\lambda}{\lambda} \overset{approx}{\sim} \N(0,1)
-\end{eqnarray*}$$
-
-.blue[Under $H_0$]:  
-One has $\lambda \in [0,\lambda_0]$, still the $H_0$ distribution of $\overline{X}$ is not fully known...
-
-
----
-
-## Worst case scenario
-
-Which value of $\lambda \in [0,\lambda_0]$ leads to the worst (i.e. the max) value of $P_{H_0}(\overline{X}\geq s)$ ?  
-
-
-```{r,fig.height=6}
-## Parameters
-MinLambda = 1
-MaxLambda = - log(0.1)
-NbVal = 3
-MaxX <- 15
-
-## Theme
-Coef=1.2  
-THFtn <- function(Coef){
-  theme(axis.text=element_text(size=10*Coef),
-      axis.title=element_text(size=15*Coef),
-      plot.title=element_text(size=15*Coef),
-      strip.text.x = element_text(size = 20*Coef),
-      legend.text=element_text(size=12*Coef),
-      legend.title = element_text(size=15*Coef))
-} 
-TH <- THFtn(Coef)
-  
-## Plot the risk
-LambdaSet <- round(seq(MinLambda,MaxLambda,length.out = NbVal),4) %>% rep(.,each=MaxX+1)
-Runs <- rep(0:MaxX,times=3)
-Probs <- dpois(Runs,lambda = LambdaSet)
-DF <- data.frame(LambdaSet,Runs,Probs,Lambda=as.character(LambdaSet)) 
-ggplot(DF,aes(x=Runs,y=Probs,col=Lambda)) +
-  geom_line(size=2) + 
-  ylab('Prob(X=x)') + xlab('x') + ggtitle('Poisson distribution with different lambdas') +
-  geom_vline(xintercept = 4.5,size=2) + TH
-```
+You collect .alert[noisy data] about the problem and want to give an *evidence based* .blue[answer] to the question
 
 --
 
-Worst value: $\lambda =\lambda_0$ !
+```{r, echo = FALSE, out.width="300px", fig.align='center'}
+knitr::include_graphics("imgs/what-if-i-told-you-about-statistical-tests.jpg")
+```
 
 ---
 
-## Back to the decision rule
+## When should you use a test ?
 
-```{r, echo = FALSE, eval = FALSE}
-GG <- ggplot(data.frame(x = c(0, 15)), aes(x)) +
-  stat_function(fun = dpois,args = list(lambda=Lambda0),size=2) +
-  stat_function(fun = dpois,args = list(lambda=Lambda0),
-                xlim = c(quant.pois,15),
-                geom = "area",fill=2) +
-  ylab('Value') + xlab('Density') + ggtitle(paste('Poisson(lambda0) distribution')) +
-  TH
+* You have a .alert[yes/no] question
+
+* You have .alert[data] related to the question
+
+* The data can be .alert[modeled] as the result of some .alert[random variable]
+
+* The question can be framed in terms of .alert[parameters] of the distribution
+
+--
+
+.pull-left[
+You can either:
+- **reject** the null hypothesis: observed patterns are unexpected under your assumptions
+- **retain** the null hypothesis: observed patterns are expected under your assumptions
+  - .red[**Does not imply that your assumptions are true**]
+]
+
+--
+
+.pull-right[
+```{r, echo = FALSE, out.width="300px", fig.align='center'}
+knitr::include_graphics("imgs/one-does-not-simply-accept-the-null-hypothesis.jpg")
+```
+]
+
+---
+## Four elements of a test
+
+
+.pull-left-70[
+- **Data:** 
+    * $y_1, ..., y_n$ realisation of r.v. $Y_1, ..., Y_n$
+- A statistical **model**: 
+
+    * distribution of  $Y_1,..., Y_n$ depending on some parameters $\theta$
+
+- An **assumption**: 
+
+    * A statement about $\theta$. 
+    * This is the so called $H_0$ hypothesis that you usually want to reject, $H_1$ being the alternative
+
+- A **decision rule** 
+
+  	* If $T=f(X_1,..., X_n)$ is a test statistic
+  	* $R$  is subset of values for $T$ that is unlikely if $H_0$ is true
+]
+
+---
+## An example with babies
+
+- **Data**: biological sex of children born in 2020 in France (from [INED and INSEE](https://www.ined.fr/fr/tout-savoir-population/chiffres/france/naissance-fecondite/naissances-sexe/))
+  - 356 389 `r emo::ji("boy")` / 340 275 `r emo::ji("girl")`
+
+- **Model**: 
+  - The sex of a newborn is $\sim \mathcal{B}(p)$, a Bernoulli of parameter $p$ (where 1 stands for girls and 0 for boys)
+  - Sex of all children are i.i.d. (.alert[modeling assumption])
+  
+- **Null Hypothesis**
+  - There is an equal chance of being born a boy or a girl $\Rightarrow p = 1/2$
+  
+- **Decision rule**
+  - Test statistic: .alert[frequency] $\hat{p}$ of girls among children born in 2020
+  - Reject $H_0$ if $\hat{p}$ is **too far** from $1/2$ 
+  
+--
+
+.center[.alert[The hard work consists in quantifying what is *too far*]]
+
+---
+## Decision errors
+
+The decision is based on .alert[noisy data] and so is .alert[error-prone]
+
+```{r, echo = FALSE, out.width = "700px", fig.align='center'}
+knitr::include_graphics("imgs/typeIandII.jpg")
+```
+
+.footnote[Image from [whatilearned](https://whatilearned.fandom.com/wiki/Hypothesis_Testing)]
+
+---
+### Type I/ Type II error for pregnancy tests
+
+```{r, echo = FALSE, out.width="700px", fig.align='center'}
+knitr::include_graphics("imgs/Type-I-and-II-errors1-625x468.jpg")
+```
+
+---
+
+### A few remarks
+
+- Strong .alert[asymetry] between $H_0$ and $H_1$
+
+- You want to accumulate sufficient evidence .alert[against] $H_0$. 
+
+- Analogy with trials: $H_0$ is on trial, do you have enough proof to convict it? 
+
+.center[
+**Necessary trade-off** between type I and type II errors:
+]
+--
+
+.pull-left-70[
+- .alert[more stringent] criteria : 
+  - less wrongful convictions (type I errors) 
+  - more criminals released (type II errors, lack of power)
+<br>
+<br>
+<br>
+]
+
+.pull-right-30[
+```{r echo = FALSE, out.width="150px"}
+knitr::include_graphics("imgs/im-on-steroids-really-prove-it.jpg")
+```
+]
+
+--
+
+.pull-left-70[
+- .alert[less stringent] criteria: 
+  - less criminals released (type II errors)
+  - more wrongful convictions (type I error) 
+]
+
+.pull-right-30[
+```{r echo = FALSE, out.width="150px"}
+knitr::include_graphics("imgs/sakazuki_guilty.jpeg")
+```
+]
+
+---
+
+## Construction of a test
+
+.pull-left-70[
+- Start with an .alert[estimator] for the parameter of intercept:
+    - Frequencies $F$ of girls among newborn
+]
+
+--
+
+.pull-left-70[    
+- Derive the .alert[distribution] of $F$ under $H_0$
+    - For $n = 356 389 + 340 275$, using the gaussian approximation, we have 
+    $$F \sim \mathcal{N}(1/2, 1/4n) = \mathcal{N}(0.5, 3.6 \times 10^{-7})$$
+]
+
+.pull-right-30[
+```{r echo = FALSE, fig.width = 5, fig.height=5, out.width="700px"}
+n <- 356389+340275
+x <- seq(0.495, 0.505, length.out = 101)
+density <- dnorm(x, mean = 0.5, sd = sqrt(1/(4*n)))
+plot(x = x, y = density, type = "l")
+abline(v = c(0.4988142, 0.5011858), col = "blue", lty = 2)
+```
+]
+
+--
+
+.pull-left-70[
+- Calibrate the .alert[region of unlikely values] under the null
+    - With probability 0.95, $|F - 1/2| \leq 1.96 \times \sqrt{3.6\times 10^{-7}} = 0.0012$
+    - $F \notin [0.4988, 0.5012]$ with probability at most 5%
+]
+
+--
+
+.pull-left-70[
+- Compare with the .alert[actual estimation]
+    - Here $f = 340 275 / (356 389 + 340 275) = 0.488$
+    - Unlikely if $p= 1/2$ $\Rightarrow$ reject $H_0$
+    
+]
+
+---
+
+## About the p-value
+
+**Idea** Go one step further than **reject / retain** and assess the .alert[significance] of the observed statistic
+
+--
+
+.pull-left[
+- $|F - 1/2|$ unlikely to be higher than $0.0012$
+
+- $|f - 1/2|$ actually observed to be $0.012$
+
+- How likely are we to observe such deviations if $p=1/2$? 
+
+$$
+\begin{align}
+p &= P_{H_0}(|F - 1/2| > |f - 1/2|) \\
+& = P_{H_0}(|F - 1/2| > 0.012) \\
+& = P_{H_0}(F < 0.488) + P_{H_0}(F > 0.512) \\
+& \simeq 5.5 \times 10^{-89}
+\end{align}
+$$
+- Not only unlikely but .alert[insanely] unlikely !!!
+]
+
+.pull-right[
+```{r, echo = FALSE, fig.width=5, fig.height=3.9, out.width="700px"}
+n <- 356389+340275
+x <- seq(0.485, 0.515, length.out = 1001)
+sdev <- sqrt(1/(4*n))
+density <- dnorm(x, mean = 0.5, sd = sdev)
+a <- qnorm(p = 0.025, mean = 0.5, sd = sdev) 
+b <- qnorm(p = 0.975, mean = 0.5, sd = sdev) 
+df <- tibble(x = x, 
+             d = density, 
+             side = case_when(
+               x < a ~ "low", 
+               x > b ~ "high",
+               TRUE ~ "center"))
+ggplot(df, aes(x = x, y = d)) + 
+  geom_line() +
+  geom_area(aes(y = d, fill = side)) + 
+  scale_fill_manual(values = c(low = "darkred", center = "transparent", high = "darkred"), guide = "none") + 
+  geom_vline(xintercept = c(a, b), color = "darkred", linetype = 2) +
+  annotate(x = 0.5, y = dnorm(a, mean = 0.5, sd = sdev), hjust = 0.5, vjust = 0, geom = 'text', label = "alpha == 0.05", parse = TRUE, color = "darkred") +
+  annotate(x = a, y = 250, hjust = 1.1, vjust = 0, geom = 'text', label = "f == 0.4988", parse = TRUE, color = "darkred") +
+  annotate(x = b, y = 250, hjust = -0.1, vjust = 0, geom = 'text', label = "f == 0.5012", parse = TRUE, color = "darkred") +
+  geom_vline(xintercept = c(0.488, 0.512), color = "red", linetype = 2) +
+  annotate(x = 0.488, y = 0, hjust = -0.1, vjust = -0.5, geom = 'text', label = "f == 0.488", parse = TRUE, color = "red") +
+  theme_bw() + 
+  # annotate(x = t, y = 0.05, hjust = -1, vjust = 0, geom = 'text', label = "p", parse = TRUE, color = "red") + 
+  NULL
+```
+]
+
+---
+## 谢谢山东大学威海校区 🌊⛱️☀️🥟🍜
+
+```{r echo = FALSE, out.width="800px", fig.align='center'}
+knitr::include_graphics("Figures/thank_you_wiehai.jpg")
 ```
 
 
-Considering the worst case scenario,
-one looks for $s$ such that
-$$P_{\lambda_0}\left( \overline{X}\geq s \right)\leq \alpha \Rightarrow P_{\lambda_0} \left( n\overline{X}\geq ns \right)\leq \alpha$$
-Choose $ns = q_{n\lambda_0,1-\alpha} \Rightarrow s = \frac{q_{n\lambda_0,1-\alpha}}{n}$,
-
-.blue[Application]
-- $\widehat{\lambda}=$   `r LambdaHat`
-- $n=$ `r NbBactos`
-- $\alpha= 0.05$
-- $q_{n\lambda_0,1-\alpha}=$ `r quant.pois` $\Rightarrow s=$ `r quant.pois/NbBactos`
---
-
-.blue[Conclusion ?]
-
-One `r ccl` the hypothesis that the proportion of infected bacteria is lower than 90\%
-
-
----
-
-## Power of a test procedure
-
-Recall that the test procedure is design such that:
-
-- T1E is controlled at a given level,
-- T2E is minimum given T1E is controlled.
-
-
-T2E is minimum $\Rightarrow$ $P_{H_1}( \text{accept } H_0)$ is minimum $\Rightarrow$ $P_{H_1}(\text{reject} H_0)$ is maximum. 
-
-
-$P_{H_1}(\text{reject } H_0)$ is the ability to reject $H_0$ when it false.
-This key quantity is called the __power__ of the test procedure.
 

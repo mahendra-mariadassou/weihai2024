@@ -46,7 +46,7 @@
 }
 
 .alert {
-  color: darkgreen;
+  color: blue;
   font-weight: bold;
 }
 
@@ -116,11 +116,6 @@
   width: 47%;
 }
 
-.pull-left-70 {
-  float: left;
-  width: 67%;
-}
-
 .col-right {
   float: right;
   width: 47%;  
@@ -131,15 +126,16 @@
   width: 47%;
 }
 
-.pull-right-30 {
-  float: right;
-  width: 30%;
-}
-
 .pull-right ~ * {
   clear: both;
 }
 
-.pull-right-30 ~ * {
-  clear: both;
+.pull-left-70 {
+  width: 68%;
+  float: left;
+}
+
+.pull-right-30 {
+  width: 28%;
+  float: right;
 }
