@@ -245,27 +245,15 @@ abline(v = c(0.4988142, 0.5011858), col = "blue", lty = 2)
 
 **Idea** Go one step further than **reject / retain** and assess the .alert[significance] of the observed statistic
 
---
+.pull-left-50[
+- $|F - 1/2|$ .alert[unlikely] to be higher than $0.0012$
 
-.pull-left[
-- $|F - 1/2|$ unlikely to be higher than $0.0012$
-
-- $|f - 1/2|$ actually observed to be $0.012$
-
-- How likely are we to observe such deviations if $p=1/2$? 
-
-$$
-\begin{align}
-p &= P_{H_0}(|F - 1/2| > |f - 1/2|) \\
-& = P_{H_0}(|F - 1/2| > 0.012) \\
-& = P_{H_0}(F < 0.488) + P_{H_0}(F > 0.512) \\
-& \simeq 5.5 \times 10^{-89}
-\end{align}
-$$
-- Not only unlikely but .alert[insanely] unlikely !!!
+- $|f - 1/2|$ .alert[actually] observed to be $0.012$
 ]
 
-.pull-right[
+--
+
+.pull-right-50[
 ```{r, echo = FALSE, fig.width=5, fig.height=3.9, out.width="700px"}
 n <- 356389+340275
 x <- seq(0.485, 0.515, length.out = 1001)
@@ -293,6 +281,26 @@ ggplot(df, aes(x = x, y = d)) +
   # annotate(x = t, y = 0.05, hjust = -1, vjust = 0, geom = 'text', label = "p", parse = TRUE, color = "red") + 
   NULL
 ```
+]
+
+--
+
+.pull-left-50[
+- How likely are we to observe such deviations if $p=1/2$? 
+]
+
+--
+
+.pull-left-50[
+$$
+\begin{align}
+p &= P_{H_0}(|F - 1/2| > |f - 1/2|) \\
+& = P_{H_0}(|F - 1/2| > 0.012) \\
+& = P_{H_0}(F < 0.488) + P_{H_0}(F > 0.512) \\
+& \simeq 5.5 \times 10^{-89}
+\end{align}
+$$
+- Not only unlikely but .alert[insanely] unlikely !!!
 ]
 
 ---

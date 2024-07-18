@@ -139,3 +139,13 @@
   width: 28%;
   float: right;
 }
+
+.pull-left-50 {
+  width: 47%;
+  float: left;
+}
+
+.pull-right-50 {
+  width: 47%;
+  float: right;
+}
